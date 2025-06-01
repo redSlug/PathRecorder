@@ -7,35 +7,55 @@
 
 import SwiftUI
 import SwiftData
+import CoreLocation
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var items: [Item]
+    @StateObject private var locationManager = LocationManager()
 
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
+        NavigationStack {
+            VStack(spacing: 20) {
+                if locationManager.isRecording {
+                    Text("Recording in progress...")
+                        .foregroundColor(.red)
+                }
+                
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Distance: \(String(format: "%.2f", locationManager.totalDistance / 1000)) km")
+                    if locationManager.elapsedTime > 0 {
+                        Text("Time: \(formatTime(locationManager.elapsedTime))")
                     }
                 }
-                .onDelete(perform: deleteItems)
-            }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
+                .padding()
+                .background(Color.gray.opacity(0.1))
+                .cornerRadius(10)
+                
+                Button(action: {
+                    if locationManager.isRecording {
+                        locationManager.stopRecording()
+                    } else {
+                        locationManager.startRecording()
                     }
+                }) {
+                    Text(locationManager.isRecording ? "Stop Recording" : "Start Recording")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(locationManager.isRecording ? Color.red : Color.green)
+                        .cornerRadius(10)
                 }
+                .padding(.horizontal)
+                
+                Spacer()
             }
-        } detail: {
-            Text("Select an item")
+            .padding()
+            .navigationTitle("Path Recorder")
+            .onAppear {
+                locationManager.requestPermission()
+            }
         }
     }
 
@@ -52,6 +72,13 @@ struct ContentView: View {
                 modelContext.delete(items[index])
             }
         }
+    }
+
+    private func formatTime(_ timeInterval: TimeInterval) -> String {
+        let hours = Int(timeInterval) / 3600
+        let minutes = Int(timeInterval) / 60 % 60
+        let seconds = Int(timeInterval) % 60
+        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
     }
 }
 
