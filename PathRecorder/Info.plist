@@ -6,5 +6,9 @@
 	<array>
 		<string>location</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We need your location to track your path and calculate distance traveled.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>We need your location to track your path and calculate distance traveled, even when the app is in the background.</string>
 </dict>
 </plist>
