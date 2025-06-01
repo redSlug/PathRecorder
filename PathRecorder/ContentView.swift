@@ -23,6 +23,9 @@ struct ContentView: View {
                 }
                 
                 VStack(alignment: .leading, spacing: 10) {
+                    if let location = locationManager.currentLocation {
+                        Text("GPS: \(String(format: "%.6f", location.coordinate.latitude)), \(String(format: "%.6f", location.coordinate.longitude))")
+                    }
                     Text("Distance: \(String(format: "%.2f", locationManager.totalDistance / 1000)) km")
                     if locationManager.elapsedTime > 0 {
                         Text("Time: \(formatTime(locationManager.elapsedTime))")

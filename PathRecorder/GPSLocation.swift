@@ -15,6 +15,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var totalDistance: Double = 0
     @Published var startTime: Date?
     @Published var elapsedTime: TimeInterval = 0
+    @Published var currentLocation: CLLocation?
     
     override init() {
         super.init()
@@ -46,6 +47,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let location = locations.last else { return }
+        currentLocation = location
+        
         guard isRecording else { return }
         
         for location in locations {
