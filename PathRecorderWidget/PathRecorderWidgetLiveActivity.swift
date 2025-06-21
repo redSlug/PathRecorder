@@ -54,6 +54,14 @@ struct PathRecorderWidgetLiveActivity: Widget {
                                 .foregroundColor(.orange)
                         }
                     }
+                    
+                    if context.state.isPaused {
+                        Text("RECORDING PAUSED")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                            .fontWeight(.bold)
+                            .padding(.top, 2)
+                    }
                 }
                 .padding()
                 .multilineTextAlignment(.center)
@@ -77,10 +85,19 @@ struct PathRecorderWidgetLiveActivity: Widget {
                 }
                 
                 DynamicIslandExpandedRegion(.bottom) {
-                    Text(String(format: "GPS: %.6f, %.6f", 
-                                context.state.latitude, 
-                                context.state.longitude))
-                        .font(.caption)
+                    VStack(spacing: 5) {
+                        Text(String(format: "GPS: %.6f, %.6f", 
+                                    context.state.latitude, 
+                                    context.state.longitude))
+                            .font(.caption)
+                        
+                        if context.state.isPaused {
+                            Text("RECORDING PAUSED")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                                .fontWeight(.bold)
+                        }
+                    }
                 }
             } compactLeading: {
                 Image(systemName: "figure.walk")
@@ -112,7 +129,8 @@ struct PathRecorderLiveActivity_Previews: PreviewProvider {
         latitude: 37.332077, 
         longitude: -122.03031, 
         distance: 1234, 
-        elapsedTime: 3600
+        elapsedTime: 3600,
+        isPaused: false
     )
 
     static var previews: some View {

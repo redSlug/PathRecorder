@@ -30,6 +30,11 @@ struct ContentView: View {
                     if locationManager.elapsedTime > 0 {
                         Text("Time: \(formatTime(locationManager.elapsedTime))")
                     }
+                    if locationManager.isPaused {
+                        Text("PAUSED")
+                            .foregroundColor(.orange)
+                            .fontWeight(.bold)
+                    }
                 }
                 .padding()
                 .background(Color.gray.opacity(0.1))
@@ -51,6 +56,26 @@ struct ContentView: View {
                         .cornerRadius(10)
                 }
                 .padding(.horizontal)
+                
+                // Only show pause/resume button when recording is active
+                if locationManager.isRecording {
+                    Button(action: {
+                        if locationManager.isPaused {
+                            locationManager.resumeRecording()
+                        } else {
+                            locationManager.pauseRecording()
+                        }
+                    }) {
+                        Text(locationManager.isPaused ? "Resume Recording" : "Pause Recording")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(locationManager.isPaused ? Color.green : Color.orange)
+                            .cornerRadius(10)
+                    }
+                    .padding(.horizontal)
+                }
                 
                 Spacer()
             }

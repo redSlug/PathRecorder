@@ -9,12 +9,14 @@ public struct PathRecorderAttributes: ActivityAttributes {
         public var longitude: Double
         public var distance: Double
         public var elapsedTime: TimeInterval
+        public var isPaused: Bool
         
-        public init(latitude: Double, longitude: Double, distance: Double, elapsedTime: TimeInterval) {
+        public init(latitude: Double, longitude: Double, distance: Double, elapsedTime: TimeInterval, isPaused: Bool = false) {
             self.latitude = latitude
             self.longitude = longitude
             self.distance = distance
             self.elapsedTime = elapsedTime
+            self.isPaused = isPaused
         }
     }
     

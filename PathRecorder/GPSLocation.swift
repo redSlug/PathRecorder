@@ -16,9 +16,12 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let locationManager = CLLocationManager()
     @Published var locations: [GPSLocation] = []
     @Published var isRecording = false
+    @Published var isPaused = false
     @Published var totalDistance: Double = 0
     @Published var startTime: Date?
     @Published var elapsedTime: TimeInterval = 0
+    @Published var pausedTime: TimeInterval = 0
+    @Published var pauseStartTime: Date?
     @Published var currentLocation: CLLocation?
     @Published var currentActivity: Activity<PathRecorderAttributes>?
     
@@ -49,7 +52,10 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         locations.removeAll()
         totalDistance = 0
         startTime = Date()
+        pausedTime = 0
+        pauseStartTime = nil
         isRecording = true
+        isPaused = false
         locationManager.startUpdatingLocation()
         startLiveActivity()
         
@@ -58,8 +64,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         activityUpdateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             DispatchQueue.main.async {
-                if let start = self.startTime {
-                    self.elapsedTime = Date().timeIntervalSince(start)
+                if let start = self.startTime, !self.isPaused {
+                    self.elapsedTime = Date().timeIntervalSince(start) - self.pausedTime
                 }
                 self.updateLiveActivity()
             }
@@ -70,9 +76,10 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         // Ensure UI updates happen on main thread
         DispatchQueue.main.async {
             self.isRecording = false
+            self.isPaused = false
             self.locationManager.stopUpdatingLocation()
             if let start = self.startTime {
-                self.elapsedTime = Date().timeIntervalSince(start)
+                self.elapsedTime = Date().timeIntervalSince(start) - self.pausedTime
             }
             
             // Stop the timer
@@ -83,6 +90,43 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
     }
     
+    func pauseRecording() {
+        guard isRecording && !isPaused else { return }
+        
+        DispatchQueue.main.async {
+            self.isPaused = true
+            self.pauseStartTime = Date()
+            self.locationManager.stopUpdatingLocation()
+            
+            // Update Live Activity to show paused state
+            self.updateLiveActivity()
+        }
+    }
+    
+    func resumeRecording() {
+        guard isRecording && isPaused else { return }
+        
+        DispatchQueue.main.async {
+            // Calculate time spent in paused state and add to total pausedTime
+            if let pauseStart = self.pauseStartTime {
+                self.pausedTime += Date().timeIntervalSince(pauseStart)
+                self.pauseStartTime = nil
+            }
+            
+            self.isPaused = false
+            
+            // Simple approach: Just reset everything
+            self.locations.removeAll()
+            self.lastProcessedTime = nil
+            self.recentLocations.removeAll()
+            
+            self.locationManager.startUpdatingLocation()
+            
+            // Update Live Activity to show resumed state
+            self.updateLiveActivity()
+        }
+    }
+    
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
         
@@ -90,7 +134,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         DispatchQueue.main.async {
             self.currentLocation = location
             
-            guard self.isRecording else { return }
+            // Don't process location updates if recording is not active or is paused
+            guard self.isRecording && !self.isPaused else { return }
             
             // Filter location by accuracy
             guard location.horizontalAccuracy <= self.minAccuracy else {
@@ -202,7 +247,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             latitude: currentLocation?.coordinate.latitude ?? 0,
             longitude: currentLocation?.coordinate.longitude ?? 0,
             distance: totalDistance,
-            elapsedTime: 0 // Start with 0 elapsed time
+            elapsedTime: 0, // Start with 0 elapsed time
+            isPaused: false
         )
         
         let attributes = PathRecorderAttributes()
@@ -227,20 +273,25 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             }
             
             var currentElapsedTime: TimeInterval = 0
+            var isPausedState: Bool = false
             
             // Update elapsed time on main thread and get the value
             await MainActor.run {
                 if let start = startTime {
-                    self.elapsedTime = Date().timeIntervalSince(start)
+                    if !isPaused {
+                        self.elapsedTime = Date().timeIntervalSince(start) - self.pausedTime
+                    }
                 }
                 currentElapsedTime = self.elapsedTime
+                isPausedState = self.isPaused
             }
             
             let updatedState = PathRecorderAttributes.ContentState(
                 latitude: currentLocation?.coordinate.latitude ?? 0,
                 longitude: currentLocation?.coordinate.longitude ?? 0,
                 distance: totalDistance,
-                elapsedTime: currentElapsedTime
+                elapsedTime: currentElapsedTime,
+                isPaused: isPausedState
             )
             
             await activity.update(using: updatedState)
@@ -266,7 +317,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 latitude: lat,
                 longitude: long,
                 distance: dist,
-                elapsedTime: time
+                elapsedTime: time,
+                isPaused: false
             )
             
             await activity.end(using: finalState, dismissalPolicy: .immediate)
