@@ -22,6 +22,14 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var currentLocation: CLLocation?
     @Published var currentActivity: Activity<PathRecorderAttributes>?
     
+    // Properties for improved distance calculation
+    private var lastProcessedTime: Date?
+    private var recentLocations: [CLLocation] = [] // For moving average calculation
+    private let minAccuracy: CLLocationAccuracy = 20.0 // Accuracy threshold in meters
+    private let minDistance: Double = 2.0 // Minimum distance in meters
+    private let minTimeInterval: TimeInterval = 2.0 // Minimum seconds between location updates
+    private let maxLocationsForAverage: Int = 3 // Number of locations to use for moving average
+    
     private var activityUpdateTimer: Timer?
     
     override init() {
@@ -84,24 +92,100 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             
             guard self.isRecording else { return }
             
-            for location in locations {
+            // Filter location by accuracy
+            guard location.horizontalAccuracy <= self.minAccuracy else {
+                print("Skipping location due to poor accuracy: \(location.horizontalAccuracy)m")
+                return
+            }
+            
+            // Time-based filtering
+            if let lastTime = self.lastProcessedTime,
+               location.timestamp.timeIntervalSince(lastTime) < self.minTimeInterval {
+                print("Skipping location - too soon after last update")
+                return
+            }
+            
+            // Update the last processed time
+            self.lastProcessedTime = location.timestamp
+            
+            // Add to recent locations for moving average (limited to maxLocationsForAverage)
+            self.recentLocations.append(location)
+            if self.recentLocations.count > self.maxLocationsForAverage {
+                self.recentLocations.removeFirst()
+            }
+            
+            // Calculate moving average location (if we have enough points)
+            if self.recentLocations.count > 1 {
+                let avgLocation = self.calculateAverageLocation(self.recentLocations)
+                
+                // Create the GPS location from the averaged coordinates
+                let gpsLocation = GPSLocation(
+                    latitude: avgLocation.coordinate.latitude,
+                    longitude: avgLocation.coordinate.longitude,
+                    timestamp: location.timestamp
+                )
+                
+                // Compare with previous location (if exists)
+                if self.locations.count > 0 {
+                    let previousGPS = self.locations.last!
+                    let previousLocation = CLLocation(
+                        latitude: previousGPS.latitude,
+                        longitude: previousGPS.longitude
+                    )
+                    
+                    // Calculate distance to previous location
+                    let distance = avgLocation.distance(from: previousLocation)
+                    
+                    // Only record if we've moved at least minDistance
+                    if distance >= self.minDistance {
+                        self.locations.append(gpsLocation)
+                        self.totalDistance += distance
+                        print("Distance added: \(distance)m, Total: \(self.totalDistance)m")
+                    } else {
+                        print("Skipping - distance too small: \(distance)m")
+                    }
+                } else {
+                    // This is the first location, just add it
+                    self.locations.append(gpsLocation)
+                    print("First location recorded")
+                }
+            } else if self.locations.isEmpty {
+                // Handle the very first location
                 let gpsLocation = GPSLocation(
                     latitude: location.coordinate.latitude,
                     longitude: location.coordinate.longitude,
                     timestamp: location.timestamp
                 )
                 self.locations.append(gpsLocation)
-                
-                if self.locations.count > 1 {
-                    let lastLocation = CLLocation(
-                        latitude: self.locations[self.locations.count - 2].latitude,
-                        longitude: self.locations[self.locations.count - 2].longitude
-                    )
-                    self.totalDistance += location.distance(from: lastLocation)
-                }
+                print("Initial location recorded")
             }
+            
             self.updateLiveActivity()
         }
+    }
+    
+    // Helper method to calculate the average location from a set of locations
+    private func calculateAverageLocation(_ locations: [CLLocation]) -> CLLocation {
+        guard !locations.isEmpty else { return CLLocation() }
+        
+        // If only one location, return it
+        if locations.count == 1 {
+            return locations.first!
+        }
+        
+        // Calculate average latitude and longitude
+        var totalLat: Double = 0
+        var totalLong: Double = 0
+        
+        for location in locations {
+            totalLat += location.coordinate.latitude
+            totalLong += location.coordinate.longitude
+        }
+        
+        let avgLat = totalLat / Double(locations.count)
+        let avgLong = totalLong / Double(locations.count)
+        
+        return CLLocation(latitude: avgLat, longitude: avgLong)
     }
     
     // MARK: - Live Activity Methods
