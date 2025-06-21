@@ -6,6 +6,14 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		B93D3C222E07111600B158C8 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B93D3C212E07111600B158C8 /* WidgetKit.framework */; };
+		B93D3C242E07111600B158C8 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B93D3C232E07111600B158C8 /* SwiftUI.framework */; };
+		B93D3C352E07111700B158C8 /* PathRecorderWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B93D3C1F2E07111600B158C8 /* PathRecorderWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		B93D3C422E07157000B158C8 /* Shared in Frameworks */ = {isa = PBXBuildFile; productRef = B93D3C412E07157000B158C8 /* Shared */; };
+		B93D3C442E07158300B158C8 /* Shared in Frameworks */ = {isa = PBXBuildFile; productRef = B93D3C432E07158300B158C8 /* Shared */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		6141C8E62DECACBA0034946C /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,12 +29,36 @@
 			remoteGlobalIDString = 6141C8D22DECACB90034946C;
 			remoteInfo = PathRecorder;
 		};
+		B93D3C332E07111700B158C8 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6141C8CB2DECACB90034946C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B93D3C1E2E07111600B158C8;
+			remoteInfo = PathRecorderWidgetExtension;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		B93D3C3A2E07111700B158C8 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				B93D3C352E07111700B158C8 /* PathRecorderWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		6141C8D32DECACB90034946C /* PathRecorder.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PathRecorder.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6141C8E52DECACBA0034946C /* PathRecorderTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PathRecorderTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		6141C8EF2DECACBA0034946C /* PathRecorderUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PathRecorderUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B93D3C1F2E07111600B158C8 /* PathRecorderWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PathRecorderWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		B93D3C212E07111600B158C8 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		B93D3C232E07111600B158C8 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -36,6 +68,13 @@
 				Info.plist,
 			);
 			target = 6141C8D22DECACB90034946C /* PathRecorder */;
+		};
+		B93D3C392E07111700B158C8 /* Exceptions for "PathRecorderWidget" folder in "PathRecorderWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = B93D3C1E2E07111600B158C8 /* PathRecorderWidgetExtension */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -58,6 +97,14 @@
 			path = PathRecorderUITests;
 			sourceTree = "<group>";
 		};
+		B93D3C252E07111600B158C8 /* PathRecorderWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				B93D3C392E07111700B158C8 /* Exceptions for "PathRecorderWidget" folder in "PathRecorderWidgetExtension" target */,
+			);
+			path = PathRecorderWidget;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -65,6 +112,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B93D3C422E07157000B158C8 /* Shared in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -82,6 +130,16 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B93D3C1C2E07111600B158C8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B93D3C242E07111600B158C8 /* SwiftUI.framework in Frameworks */,
+				B93D3C222E07111600B158C8 /* WidgetKit.framework in Frameworks */,
+				B93D3C442E07158300B158C8 /* Shared in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -91,6 +149,8 @@
 				6141C8D52DECACB90034946C /* PathRecorder */,
 				6141C8E82DECACBA0034946C /* PathRecorderTests */,
 				6141C8F22DECACBA0034946C /* PathRecorderUITests */,
+				B93D3C252E07111600B158C8 /* PathRecorderWidget */,
+				B93D3C202E07111600B158C8 /* Frameworks */,
 				6141C8D42DECACB90034946C /* Products */,
 			);
 			sourceTree = "<group>";
@@ -101,8 +161,18 @@
 				6141C8D32DECACB90034946C /* PathRecorder.app */,
 				6141C8E52DECACBA0034946C /* PathRecorderTests.xctest */,
 				6141C8EF2DECACBA0034946C /* PathRecorderUITests.xctest */,
+				B93D3C1F2E07111600B158C8 /* PathRecorderWidgetExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		B93D3C202E07111600B158C8 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				B93D3C212E07111600B158C8 /* WidgetKit.framework */,
+				B93D3C232E07111600B158C8 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -115,16 +185,19 @@
 				6141C8CF2DECACB90034946C /* Sources */,
 				6141C8D02DECACB90034946C /* Frameworks */,
 				6141C8D12DECACB90034946C /* Resources */,
+				B93D3C3A2E07111700B158C8 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				B93D3C342E07111700B158C8 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				6141C8D52DECACB90034946C /* PathRecorder */,
 			);
 			name = PathRecorder;
 			packageProductDependencies = (
+				B93D3C412E07157000B158C8 /* Shared */,
 			);
 			productName = PathRecorder;
 			productReference = 6141C8D32DECACB90034946C /* PathRecorder.app */;
@@ -176,6 +249,29 @@
 			productReference = 6141C8EF2DECACBA0034946C /* PathRecorderUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		B93D3C1E2E07111600B158C8 /* PathRecorderWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B93D3C362E07111700B158C8 /* Build configuration list for PBXNativeTarget "PathRecorderWidgetExtension" */;
+			buildPhases = (
+				B93D3C1B2E07111600B158C8 /* Sources */,
+				B93D3C1C2E07111600B158C8 /* Frameworks */,
+				B93D3C1D2E07111600B158C8 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				B93D3C252E07111600B158C8 /* PathRecorderWidget */,
+			);
+			name = PathRecorderWidgetExtension;
+			packageProductDependencies = (
+				B93D3C432E07158300B158C8 /* Shared */,
+			);
+			productName = PathRecorderWidgetExtension;
+			productReference = B93D3C1F2E07111600B158C8 /* PathRecorderWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -197,6 +293,9 @@
 						CreatedOnToolsVersion = 16.2;
 						TestTargetID = 6141C8D22DECACB90034946C;
 					};
+					B93D3C1E2E07111600B158C8 = {
+						CreatedOnToolsVersion = 16.2;
+					};
 				};
 			};
 			buildConfigurationList = 6141C8CE2DECACB90034946C /* Build configuration list for PBXProject "PathRecorder" */;
@@ -208,6 +307,9 @@
 			);
 			mainGroup = 6141C8CA2DECACB90034946C;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				B93D3C402E07152A00B158C8 /* XCLocalSwiftPackageReference "Shared" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6141C8D42DECACB90034946C /* Products */;
 			projectDirPath = "";
@@ -216,6 +318,7 @@
 				6141C8D22DECACB90034946C /* PathRecorder */,
 				6141C8E42DECACBA0034946C /* PathRecorderTests */,
 				6141C8EE2DECACBA0034946C /* PathRecorderUITests */,
+				B93D3C1E2E07111600B158C8 /* PathRecorderWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -236,6 +339,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		6141C8ED2DECACBA0034946C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B93D3C1D2E07111600B158C8 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -266,6 +376,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B93D3C1B2E07111600B158C8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -278,6 +395,11 @@
 			isa = PBXTargetDependency;
 			target = 6141C8D22DECACB90034946C /* PathRecorder */;
 			targetProxy = 6141C8F02DECACBA0034946C /* PBXContainerItemProxy */;
+		};
+		B93D3C342E07111700B158C8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B93D3C1E2E07111600B158C8 /* PathRecorderWidgetExtension */;
+			targetProxy = B93D3C332E07111700B158C8 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -414,8 +536,10 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PathRecorder/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "We need your location to track your path and calculate distance traveled, even when the app is in the background.";
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "We need your location to track your path and calculate distance traveled.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -445,8 +569,10 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSApplicationCategoryType = "";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "We need your location to track your path and calculate distance traveled, even when the app is in the background.";
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "We need your location to track your path and calculate distance traveled.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -536,6 +662,60 @@
 			};
 			name = Release;
 		};
+		B93D3C372E07111700B158C8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Z9WN384MPT;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PathRecorderWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = PathRecorderWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = slugmuffin.PathRecorder.PathRecorderWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		B93D3C382E07111700B158C8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Z9WN384MPT;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PathRecorderWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = PathRecorderWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = slugmuffin.PathRecorder.PathRecorderWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -575,7 +755,34 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		B93D3C362E07111700B158C8 /* Build configuration list for PBXNativeTarget "PathRecorderWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B93D3C372E07111700B158C8 /* Debug */,
+				B93D3C382E07111700B158C8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		B93D3C402E07152A00B158C8 /* XCLocalSwiftPackageReference "Shared" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Shared;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		B93D3C412E07157000B158C8 /* Shared */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Shared;
+		};
+		B93D3C432E07158300B158C8 /* Shared */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Shared;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 6141C8CB2DECACB90034946C /* Project object */;
 }
