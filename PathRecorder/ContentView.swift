@@ -13,36 +13,15 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var items: [Item]
     @StateObject private var locationManager = LocationManager()
+    @StateObject private var pathStorage = PathStorage()
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
-                if locationManager.isRecording {
-                    Text("Recording in progress...")
-                        .foregroundColor(.red)
-                }
-                
-                VStack(alignment: .leading, spacing: 10) {
-                    if let location = locationManager.currentLocation {
-                        Text("GPS: \(String(format: "%.6f", location.coordinate.latitude)), \(String(format: "%.6f", location.coordinate.longitude))")
-                    }
-                    Text("Distance: \(String(format: "%.2f", locationManager.totalDistance / 1000)) km")
-                    if locationManager.elapsedTime > 0 {
-                        Text("Time: \(formatTime(locationManager.elapsedTime))")
-                    }
-                    if locationManager.isPaused {
-                        Text("PAUSED")
-                            .foregroundColor(.orange)
-                            .fontWeight(.bold)
-                    }
-                }
-                .padding()
-                .background(Color.gray.opacity(0.1))
-                .cornerRadius(10)
-                
                 Button(action: {
                     if locationManager.isRecording {
                         locationManager.stopRecording()
+                        saveCurrentPath()
                     } else {
                         locationManager.startRecording()
                     }
@@ -57,7 +36,6 @@ struct ContentView: View {
                 }
                 .padding(.horizontal)
                 
-                // Only show pause/resume button when recording is active
                 if locationManager.isRecording {
                     Button(action: {
                         if locationManager.isPaused {
@@ -77,6 +55,56 @@ struct ContentView: View {
                     .padding(.horizontal)
                 }
                 
+                
+                if locationManager.isRecording {
+                    Text("Recording in progress...")
+                        .foregroundColor(.red)
+                
+                
+                    VStack(alignment: .leading, spacing: 10) {
+                        if let location = locationManager.currentLocation {
+                            Text("GPS: \(String(format: "%.6f", location.coordinate.latitude)), \(String(format: "%.6f", location.coordinate.longitude))")
+                        }
+                        Text("Distance: \(String(format: "%.2f", locationManager.totalDistance / 1000)) km")
+                        if locationManager.elapsedTime > 0 {
+                            Text("Time: \(formatTime(locationManager.elapsedTime))")
+                        }
+                        if locationManager.isPaused {
+                            Text("PAUSED")
+                                .foregroundColor(.orange)
+                                .fontWeight(.bold)
+                        }
+                    }
+                    .padding()
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(10)
+                }
+                
+                if !pathStorage.recordedPaths.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Recorded Paths")
+                            .font(.headline)
+                            .padding(.horizontal)
+                        
+                        List {
+                            ForEach(pathStorage.recordedPaths.reversed()) { path in
+                                VStack(alignment: .leading, spacing: 5) {
+                                    Text(path.name)
+                                        .font(.headline)
+                                    Text("Distance: \(String(format: "%.2f", path.totalDistance / 1000)) km")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                    Text("Duration: \(formatTime(path.endTime.timeIntervalSince(path.startTime)))")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
+                                .padding(.vertical, 5)
+                            }
+                            .onDelete(perform: deletePaths)
+                        }
+                    }
+                }
+                
                 Spacer()
             }
             .padding()
@@ -86,19 +114,25 @@ struct ContentView: View {
             }
         }
     }
-
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
+    
+    private func saveCurrentPath() {
+        guard let startTime = locationManager.startTime else { return }
+        
+        let recordedPath = RecordedPath(
+            startTime: startTime,
+            endTime: Date(),
+            totalDistance: locationManager.totalDistance,
+            locations: locationManager.locations
+        )
+        
+        pathStorage.savePath(recordedPath)
     }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
-            }
+    
+    private func deletePaths(offsets: IndexSet) {
+        let reversedPaths = Array(pathStorage.recordedPaths.reversed())
+        for index in offsets {
+            let pathToDelete = reversedPaths[index]
+            pathStorage.deletePath(pathToDelete)
         }
     }
 

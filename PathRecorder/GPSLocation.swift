@@ -5,13 +5,6 @@ import ActivityKit
 // Import the PathRecorderAttributes from the Shared folder
 import struct Shared.PathRecorderAttributes
 
-struct GPSLocation: Identifiable {
-    let id = UUID()
-    let latitude: Double
-    let longitude: Double
-    let timestamp: Date
-}
-
 class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let locationManager = CLLocationManager()
     @Published var locations: [GPSLocation] = []
