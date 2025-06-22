@@ -55,12 +55,10 @@ struct ContentView: View {
                     .padding(.horizontal)
                 }
                 
-                
                 if locationManager.isRecording {
                     Text("Recording in progress...")
                         .foregroundColor(.red)
-                
-                
+                    
                     VStack(alignment: .leading, spacing: 10) {
                         if let location = locationManager.currentLocation {
                             Text("GPS: \(String(format: "%.6f", location.coordinate.latitude)), \(String(format: "%.6f", location.coordinate.longitude))")
@@ -88,17 +86,19 @@ struct ContentView: View {
                         
                         List {
                             ForEach(pathStorage.recordedPaths.reversed()) { path in
-                                VStack(alignment: .leading, spacing: 5) {
-                                    Text(path.name)
-                                        .font(.headline)
-                                    Text("Distance: \(String(format: "%.2f", path.totalDistance / 1000)) km")
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-                                    Text("Duration: \(formatTime(path.endTime.timeIntervalSince(path.startTime)))")
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
+                                NavigationLink(destination: PathMapView(recordedPath: path)) {
+                                    VStack(alignment: .leading, spacing: 5) {
+                                        Text(path.name)
+                                            .font(.headline)
+                                        Text("Distance: \(String(format: "%.2f", path.totalDistance / 1000)) km")
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                        Text("Duration: \(formatTime(path.endTime.timeIntervalSince(path.startTime)))")
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .padding(.vertical, 5)
                                 }
-                                .padding(.vertical, 5)
                             }
                             .onDelete(perform: deletePaths)
                         }
