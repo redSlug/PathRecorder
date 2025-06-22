@@ -23,6 +23,14 @@ struct GPSLocation: Identifiable, Codable {
     let latitude: Double
     let longitude: Double
     let timestamp: Date
+    let segmentId: UUID // Track which recording segment this belongs to
+    
+    init(latitude: Double, longitude: Double, timestamp: Date, segmentId: UUID = UUID()) {
+        self.latitude = latitude
+        self.longitude = longitude
+        self.timestamp = timestamp
+        self.segmentId = segmentId
+    }
 }
 
 class PathStorage: ObservableObject {
