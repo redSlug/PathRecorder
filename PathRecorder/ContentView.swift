@@ -54,10 +54,10 @@ struct ContentView: View {
                                         editingPath = path
                                         locationManager.loadPathForEditing(path)
                                     },
+                                    onDelete: {pathStorage.deletePath(path)},
                                     formatTime: formatTime
                                 )
                             }
-                            .onDelete(perform: deletePaths)
                         }
                     }
                 }
@@ -112,6 +112,7 @@ struct RecordedPathRow: View {
     let path: RecordedPath
     let isRecording: Bool
     let onEdit: () -> Void
+    let onDelete: () -> Void
     let formatTime: (TimeInterval) -> String
 
     var body: some View {
@@ -134,6 +135,10 @@ struct RecordedPathRow: View {
                     Label("Resume", systemImage: "pencil")
                 }
                 .tint(.blue)
+                Button(action: onDelete) {
+                    Label("trash it!", systemImage: "trash")
+                }
+                .tint(.purple)
             }
         }
     }
