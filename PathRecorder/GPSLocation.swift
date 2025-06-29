@@ -13,8 +13,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var totalDistance: Double = 0
     @Published var startTime: Date?
     @Published var elapsedTime: TimeInterval = 0
-    @Published var pausedTime: TimeInterval = 0
-    @Published var pauseStartTime: Date?
     @Published var currentLocation: CLLocation?
     @Published var currentActivity: Activity<PathRecorderAttributes>?
     @Published var isEditingMode = false
@@ -35,6 +33,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var currentSegmentId: UUID = UUID()
     
     private var activityUpdateTimer: Timer?
+    private var lastTimerUpdate: Date?
     
     override init() {
         super.init()
@@ -53,8 +52,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         locations.removeAll()
         totalDistance = 0
         startTime = Date()
-        pausedTime = 0
-        pauseStartTime = nil
+        elapsedTime = 0
         lastProcessedLocation = nil
         currentSegmentId = UUID() // Start a new segment
         isRecording = true
@@ -62,17 +60,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         locationManager.startUpdatingLocation()
         startLiveActivity()
         
-        // Start a timer to update the Live Activity every second
-        // Using DispatchQueue.main to ensure the timer runs on the main thread
-        activityUpdateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            guard let self = self else { return }
-            DispatchQueue.main.async {
-                if let start = self.startTime, !self.isPaused {
-                    self.elapsedTime = Date().timeIntervalSince(start) - self.pausedTime
-                }
-                self.updateLiveActivity()
-            }
-        }
+        // Start a timer to update elapsed time and Live Activity every second
+        startActivityTimer()
     }
     
     func stopRecording(pathStorage: PathStorage? = nil) {
@@ -87,16 +76,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             self.isPaused = false
             self.editingPath = nil // Clear the original path reference
             self.locationManager.stopUpdatingLocation()
-            if let start = self.startTime {
-                self.elapsedTime = Date().timeIntervalSince(start) - self.pausedTime
-            }
             
-            
-            self.startTime = nil
-            self.elapsedTime = 0
-            // Stop the timer
-            self.activityUpdateTimer?.invalidate()
-            self.activityUpdateTimer = nil
+            // Stop and invalidate the timer
+            self.stopActivityTimer()
             
             self.endLiveActivity()
         }
@@ -107,8 +89,10 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         
         DispatchQueue.main.async {
             self.isPaused = true
-            self.pauseStartTime = Date()
             self.locationManager.stopUpdatingLocation()
+            
+            // Stop the timer when pausing
+            self.stopActivityTimer()
             
             // Update Live Activity to show paused state
             self.updateLiveActivity()
@@ -119,12 +103,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         guard isRecording && isPaused else { return }
         
         DispatchQueue.main.async {
-            // Calculate time spent in paused state and add to total pausedTime
-            if let pauseStart = self.pauseStartTime {
-                self.pausedTime += Date().timeIntervalSince(pauseStart)
-                self.pauseStartTime = nil
-            }
-            
             self.isPaused = false
             
             // Reset only the smoothing data, keep the recorded path
@@ -136,6 +114,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             self.currentSegmentId = UUID()
             
             self.locationManager.startUpdatingLocation()
+            
+            // Recreate the timer when resuming
+            self.startActivityTimer()
             
             // Update Live Activity to show resumed state
             self.updateLiveActivity()
@@ -277,11 +258,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             
             // Capture values from main thread
             let (currentElapsedTime, isPausedState) = await MainActor.run {
-                if let start = startTime {
-                    if !isPaused {
-                        self.elapsedTime = Date().timeIntervalSince(start) - self.pausedTime
-                    }
-                }
                 return (self.elapsedTime, self.isPaused)
             }
             
@@ -351,6 +327,30 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
     }
     
+    // MARK: - Timer Management
+    private func startActivityTimer() {
+        lastTimerUpdate = Date()
+        activityUpdateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            DispatchQueue.main.async {
+                let now = Date()
+                if let lastUpdate = self.lastTimerUpdate {
+                    // Add the actual time interval since last update
+                    let actualInterval = now.timeIntervalSince(lastUpdate)
+                    self.elapsedTime += actualInterval
+                }
+                self.lastTimerUpdate = now
+                self.updateLiveActivity()
+            }
+        }
+    }
+    
+    private func stopActivityTimer() {
+        activityUpdateTimer?.invalidate()
+        activityUpdateTimer = nil
+        lastTimerUpdate = nil
+    }
+
     func loadPathForEditing(_ path: RecordedPath) {
         guard !isRecording else {
             print("Cannot load path for editing while recording is active")
@@ -365,11 +365,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         self.totalDistance = path.totalDistance
         self.elapsedTime = path.totalDuration
         
-        // Set startTime to current time minus the elapsed duration so that elapsed time calculation continues properly
-        self.startTime = Date().addingTimeInterval(-path.totalDuration)
-        self.pausedTime = 0 // Reset paused time for new session
-        self.pauseStartTime = Date() // Set pause start time to now, so when resuming it calculates pause time correctly
-        
         // Set up recording state for editing
         self.isRecording = true
         self.isPaused = true // Start in paused state as requested
@@ -380,17 +375,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         // Start Live Activity immediately with the correct initial values
         self.startLiveActivity()
         
-        // Start the timer to update elapsed time and Live Activity
-        activityUpdateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            guard let self = self else { return }
-            DispatchQueue.main.async {
-                if let start = self.startTime, !self.isPaused {
-                    self.elapsedTime = Date().timeIntervalSince(start) - self.pausedTime
-                }
-                // Update Live Activity with current state (including when paused to show current total time)
-                self.updateLiveActivity()
-            }
-        }
+        // Don't start the timer yet since we're starting in paused state
+        // The timer will be created when resumeRecording() is called
         
         print("Loaded existing path for editing - Distance: \(totalDistance)m, Duration: \(elapsedTime)s")
     }
