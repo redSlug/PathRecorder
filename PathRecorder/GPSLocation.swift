@@ -17,6 +17,10 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var pauseStartTime: Date?
     @Published var currentLocation: CLLocation?
     @Published var currentActivity: Activity<PathRecorderAttributes>?
+    @Published var isEditingMode = false
+    
+    // Store the original path being edited
+    private var editingPath: RecordedPath?
     
     // Properties for improved distance calculation
     private var lastProcessedTime: Date?
@@ -71,16 +75,25 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
     }
     
-    func stopRecording() {
+    func stopRecording(pathStorage: PathStorage? = nil) {
+        // Save the current path before stopping if pathStorage is provided
+        if let pathStorage = pathStorage {
+            saveCurrentPath(to: pathStorage)
+        }
+        
         // Ensure UI updates happen on main thread
         DispatchQueue.main.async {
             self.isRecording = false
             self.isPaused = false
+            self.editingPath = nil // Clear the original path reference
             self.locationManager.stopUpdatingLocation()
             if let start = self.startTime {
                 self.elapsedTime = Date().timeIntervalSince(start) - self.pausedTime
             }
             
+            
+            self.startTime = nil
+            self.elapsedTime = 0
             // Stop the timer
             self.activityUpdateTimer?.invalidate()
             self.activityUpdateTimer = nil
@@ -230,8 +243,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 latitude: self.currentLocation?.coordinate.latitude ?? 0,
                 longitude: self.currentLocation?.coordinate.longitude ?? 0,
                 distance: self.totalDistance,
-                elapsedTime: 0, // Start with 0 elapsed time
-                isPaused: false
+                elapsedTime: self.elapsedTime, // Use actual elapsed time instead of 0
+                isPaused: self.isPaused // Use actual paused state
             )
             
             let attributes = PathRecorderAttributes()
@@ -338,16 +351,103 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
     }
     
+    func loadPathForEditing(_ path: RecordedPath) {
+        guard !isRecording else {
+            print("Cannot load path for editing while recording is active")
+            return
+        }
+        
+        // Store the original path for later updating
+        self.editingPath = path
+        
+        // Load the existing data
+        self.locations = path.locations
+        self.totalDistance = path.totalDistance
+        self.elapsedTime = path.totalDuration
+        
+        // Set startTime to current time minus the elapsed duration so that elapsed time calculation continues properly
+        self.startTime = Date().addingTimeInterval(-path.totalDuration)
+        self.pausedTime = 0 // Reset paused time for new session
+        self.pauseStartTime = Date() // Set pause start time to now, so when resuming it calculates pause time correctly
+        
+        // Set up recording state for editing
+        self.isRecording = true
+        self.isPaused = true // Start in paused state as requested
+
+        // Set up for continuing the path
+        self.currentSegmentId = UUID() // New segment for continuation
+        
+        // Start Live Activity immediately with the correct initial values
+        self.startLiveActivity()
+        
+        // Start the timer to update elapsed time and Live Activity
+        activityUpdateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            DispatchQueue.main.async {
+                if let start = self.startTime, !self.isPaused {
+                    self.elapsedTime = Date().timeIntervalSince(start) - self.pausedTime
+                }
+                // Update Live Activity with current state (including when paused to show current total time)
+                self.updateLiveActivity()
+            }
+        }
+        
+        print("Loaded existing path for editing - Distance: \(totalDistance)m, Duration: \(elapsedTime)s")
+    }
+    
+    func getUpdatedPath() -> RecordedPath? {
+        guard let original = editingPath else { return nil }
+        
+        return RecordedPath(
+            id: original.id,
+            startTime: original.startTime,
+            totalDuration: elapsedTime,
+            totalDistance: totalDistance,
+            locations: locations,
+            name: original.name
+        )
+    }
+    
+    func saveCurrentPath(to pathStorage: PathStorage) {
+        guard let startTime = startTime else { return }
+
+        if editingPath != nil {
+            // Update the existing path
+            if let updatedPath = getUpdatedPath() {
+                pathStorage.updatePath(updatedPath)
+            }
+        } else {
+            // Create new path
+            let recordedPath = RecordedPath(
+                startTime: startTime,
+                totalDuration: elapsedTime,
+                totalDistance: totalDistance,
+                locations: locations
+            )
+            pathStorage.savePath(recordedPath)
+        }
+    }
+    
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         switch manager.authorizationStatus {
         case .authorizedAlways:
             print("location authorized always")
+            // Enable background location updates when authorized
+            locationManager.allowsBackgroundLocationUpdates = true
+            locationManager.showsBackgroundLocationIndicator = true
         case .authorizedWhenInUse:
             print("location authorized when in use")
+            // Background updates not available, disable them
+            locationManager.allowsBackgroundLocationUpdates = false
+            locationManager.showsBackgroundLocationIndicator = false
         case .denied:
             print("location denied")
+            locationManager.allowsBackgroundLocationUpdates = false
+            locationManager.showsBackgroundLocationIndicator = false
         case .restricted:
             print("location restricted")
+            locationManager.allowsBackgroundLocationUpdates = false
+            locationManager.showsBackgroundLocationIndicator = false
         case .notDetermined:
             print("location not determined")
         @unknown default:

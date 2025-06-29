@@ -20,8 +20,7 @@ struct ContentView: View {
             VStack(spacing: 20) {
                 Button(action: {
                     if locationManager.isRecording {
-                        locationManager.stopRecording()
-                        saveCurrentPath()
+                        locationManager.stopRecording(pathStorage: pathStorage)
                     } else {
                         locationManager.startRecording()
                     }
@@ -93,11 +92,20 @@ struct ContentView: View {
                                         Text("Distance: \(String(format: "%.2f", path.totalDistance / 1000)) km")
                                             .font(.subheadline)
                                             .foregroundColor(.secondary)
-                                        Text("Duration: \(formatTime(path.endTime.timeIntervalSince(path.startTime)))")
+                                        Text("Duration: \(formatTime(path.totalDuration))")
                                             .font(.subheadline)
                                             .foregroundColor(.secondary)
                                     }
                                     .padding(.vertical, 5)
+                                }
+                                .contextMenu {
+                                    if !locationManager.isRecording {
+                                        Button(action: {
+                                            locationManager.loadPathForEditing(path)
+                                        }) {
+                                            Label("Edit", systemImage: "pencil")
+                                        }
+                                    }
                                 }
                             }
                             .onDelete(perform: deletePaths)
@@ -113,19 +121,6 @@ struct ContentView: View {
                 locationManager.requestPermission()
             }
         }
-    }
-    
-    private func saveCurrentPath() {
-        guard let startTime = locationManager.startTime else { return }
-        
-        let recordedPath = RecordedPath(
-            startTime: startTime,
-            endTime: Date(),
-            totalDistance: locationManager.totalDistance,
-            locations: locationManager.locations
-        )
-        
-        pathStorage.savePath(recordedPath)
     }
     
     private func deletePaths(offsets: IndexSet) {

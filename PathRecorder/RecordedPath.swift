@@ -1,24 +1,43 @@
 import Foundation
 import CoreLocation
 
-struct RecordedPath: Identifiable, Codable {
-    let id = UUID()
-    let startTime: Date
-    let endTime: Date
+struct RecordedPath: Identifiable, Codable, Hashable {
+    let id: UUID
+    let startTime: Date // Keep start time for naming and reference
+    let totalDuration: TimeInterval // Total time in seconds
     let totalDistance: Double
     let locations: [GPSLocation]
     let name: String
     
-    init(startTime: Date, endTime: Date, totalDistance: Double, locations: [GPSLocation]) {
+    init(startTime: Date, totalDuration: TimeInterval, totalDistance: Double, locations: [GPSLocation]) {
+        self.id = UUID()
         self.startTime = startTime
-        self.endTime = endTime
+        self.totalDuration = totalDuration
         self.totalDistance = totalDistance
         self.locations = locations
         self.name = "Path \(DateFormatter.localizedString(from: startTime, dateStyle: .short, timeStyle: .short))"
     }
+    
+    init(id: UUID, startTime: Date, totalDuration: TimeInterval, totalDistance: Double, locations: [GPSLocation], name: String) {
+        self.id = id
+        self.startTime = startTime
+        self.totalDuration = totalDuration
+        self.totalDistance = totalDistance
+        self.locations = locations
+        self.name = name
+    }
+    
+    // Hashable conformance
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    
+    static func == (lhs: RecordedPath, rhs: RecordedPath) -> Bool {
+        return lhs.id == rhs.id
+    }
 }
 
-struct GPSLocation: Identifiable, Codable {
+struct GPSLocation: Identifiable, Codable, Hashable {
     let id = UUID()
     let latitude: Double
     let longitude: Double
@@ -30,6 +49,15 @@ struct GPSLocation: Identifiable, Codable {
         self.longitude = longitude
         self.timestamp = timestamp
         self.segmentId = segmentId
+    }
+    
+    // Hashable conformance
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    
+    static func == (lhs: GPSLocation, rhs: GPSLocation) -> Bool {
+        return lhs.id == rhs.id
     }
 }
 
@@ -52,6 +80,13 @@ class PathStorage: ObservableObject {
         saveToUserDefaults()
     }
     
+    func updatePath(_ updatedPath: RecordedPath) {
+        if let index = recordedPaths.firstIndex(where: { $0.id == updatedPath.id }) {
+            recordedPaths[index] = updatedPath
+            saveToUserDefaults()
+        }
+    }
+    
     private func saveToUserDefaults() {
         if let encoded = try? JSONEncoder().encode(recordedPaths) {
             userDefaults.set(encoded, forKey: key)
@@ -64,4 +99,4 @@ class PathStorage: ObservableObject {
             recordedPaths = decoded
         }
     }
-} 
+}
