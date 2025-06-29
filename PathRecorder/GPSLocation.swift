@@ -47,7 +47,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     func requestPermission() {
         locationManager.requestAlwaysAuthorization()
     }
-    
+
     func startRecording() {
         locations.removeAll()
         totalDistance = 0
@@ -74,6 +74,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         DispatchQueue.main.async {
             self.isRecording = false
             self.isPaused = false
+            self.isEditingMode = false
             self.editingPath = nil // Clear the original path reference
             self.locationManager.stopUpdatingLocation()
             
@@ -368,6 +369,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         // Set up recording state for editing
         self.isRecording = true
         self.isPaused = true // Start in paused state as requested
+        self.isEditingMode = true
 
         // Set up for continuing the path
         self.currentSegmentId = UUID() // New segment for continuation

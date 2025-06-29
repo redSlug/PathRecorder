@@ -10,15 +10,14 @@ import MapKit
 struct RecordingView: View {
     @ObservedObject var locationManager: LocationManager
     @ObservedObject var pathStorage: PathStorage
-    var editingPath: RecordedPath? = nil
     var onStop: () -> Void
     
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
-                Text(editingPath != nil ? "Editing Path..." : "Recording in progress...")
+                Text(locationManager.isEditingMode ? "Editing Path..." : "Recording in progress...")
                     .font(.title2)
-                    .foregroundColor(editingPath != nil ? .blue : .red)
+                    .foregroundColor(locationManager.isEditingMode != nil ? .blue : .red)
                 
                 VStack(alignment: .leading, spacing: 10) {
                     if let location = locationManager.currentLocation {
@@ -37,12 +36,6 @@ struct RecordingView: View {
                 .padding()
                 .background(Color.gray.opacity(0.1))
                 .cornerRadius(10)
-                
-                // PathMapView(recordedPath: locationManager.currentPath)
-                //     .frame(height: 300)
-                //     .cornerRadius(12)
-                //     .padding(.horizontal)
-                
                 HStack(spacing: 20) {
                     Button(action: {
                         onStop()

@@ -15,26 +15,20 @@ struct ContentView: View {
     @StateObject private var locationManager = LocationManager()
     @StateObject private var pathStorage = PathStorage()
     @State private var showRecordingSheet = false
-    @State private var editingPath: RecordedPath? = nil
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
                 Button(action: {
-                    if locationManager.isRecording {
-                        locationManager.stopRecording(pathStorage: pathStorage)
-                        showRecordingSheet = false
-                    } else {
-                        locationManager.startRecording()
-                        showRecordingSheet = true
-                    }
+                    locationManager.startRecording()
+                    showRecordingSheet = true
                 }) {
-                    Text(locationManager.isRecording ? "Stop Recording" : "Start Recording")
+                    Text("Start Recording")
                         .font(.headline)
                         .foregroundColor(.white)
                         .padding()
                         .frame(maxWidth: .infinity)
-                        .background(locationManager.isRecording ? Color.red : Color.green)
+                        .background(Color.green)
                         .cornerRadius(10)
                 }
                 .padding(.horizontal)
@@ -44,24 +38,23 @@ struct ContentView: View {
                         Text("Recorded Paths")
                             .font(.headline)
                             .padding(.horizontal)
-                        
                         List {
                             ForEach(pathStorage.recordedPaths.reversed()) { path in
                                 RecordedPathRow(
                                     path: path,
-                                    isRecording: locationManager.isRecording,
                                     onEdit: {
-                                        editingPath = path
+                                        showRecordingSheet = true
                                         locationManager.loadPathForEditing(path)
                                     },
-                                    onDelete: {pathStorage.deletePath(path)},
+                                    onDelete: {
+                                        pathStorage.deletePath(path)
+                                    },
                                     formatTime: formatTime
                                 )
                             }
                         }
                     }
                 }
-                
                 Spacer()
             }
             .padding()
@@ -70,21 +63,18 @@ struct ContentView: View {
                 locationManager.requestPermission()
             }
             .fullScreenCover(isPresented: Binding(
-                get: { showRecordingSheet || editingPath != nil },
+                get: { showRecordingSheet },
                 set: { newValue in
                     if !newValue {
                         showRecordingSheet = false
-                        editingPath = nil
                     }
                 })
             ) {
                 RecordingView(
                     locationManager: locationManager,
                     pathStorage: pathStorage,
-                    editingPath: editingPath,
                     onStop: {
                         showRecordingSheet = false
-                        editingPath = nil
                     }
                 )
             }
@@ -110,7 +100,6 @@ struct ContentView: View {
 
 struct RecordedPathRow: View {
     let path: RecordedPath
-    let isRecording: Bool
     let onEdit: () -> Void
     let onDelete: () -> Void
     let formatTime: (TimeInterval) -> String
@@ -129,17 +118,15 @@ struct RecordedPathRow: View {
             }
             .padding(.vertical, 5)
         }
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            if !isRecording {
-                Button(action: onEdit) {
-                    Label("Resume", systemImage: "pencil")
-                }
-                .tint(.blue)
-                Button(action: onDelete) {
-                    Label("trash it!", systemImage: "trash")
-                }
-                .tint(.purple)
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button(action: onDelete) {
+                Label("Delete", systemImage: "trash")
             }
+            .tint(.purple)
+            Button(action: onEdit) {
+                Label("Resume", systemImage: "pencil")
+            }
+            .tint(.blue)
         }
     }
 }

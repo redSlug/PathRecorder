@@ -1,7 +1,7 @@
 import Foundation
 import CoreLocation
 
-struct RecordedPath: Identifiable, Codable, Hashable {
+struct RecordedPath: Identifiable, Codable {
     let id: UUID
     let startTime: Date // Keep start time for naming and reference
     let totalDuration: TimeInterval // Total time in seconds
@@ -26,18 +26,13 @@ struct RecordedPath: Identifiable, Codable, Hashable {
         self.locations = locations
         self.name = name
     }
-    
-    // Hashable conformance
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-    }
-    
+
     static func == (lhs: RecordedPath, rhs: RecordedPath) -> Bool {
         return lhs.id == rhs.id
     }
 }
 
-struct GPSLocation: Identifiable, Codable, Hashable {
+struct GPSLocation: Identifiable, Codable {
     let id = UUID()
     let latitude: Double
     let longitude: Double
@@ -49,11 +44,6 @@ struct GPSLocation: Identifiable, Codable, Hashable {
         self.longitude = longitude
         self.timestamp = timestamp
         self.segmentId = segmentId
-    }
-    
-    // Hashable conformance
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
     }
     
     static func == (lhs: GPSLocation, rhs: GPSLocation) -> Bool {
