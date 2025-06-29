@@ -47,29 +47,15 @@ struct ContentView: View {
                         
                         List {
                             ForEach(pathStorage.recordedPaths.reversed()) { path in
-                                NavigationLink(destination: PathMapView(recordedPath: path)) {
-                                    VStack(alignment: .leading, spacing: 5) {
-                                        Text(path.name)
-                                            .font(.headline)
-                                        Text("Distance: \(String(format: "%.2f", path.totalDistance / 1000)) km")
-                                            .font(.subheadline)
-                                            .foregroundColor(.secondary)
-                                        Text("Duration: \(formatTime(path.totalDuration))")
-                                            .font(.subheadline)
-                                            .foregroundColor(.secondary)
-                                    }
-                                    .padding(.vertical, 5)
-                                }
-                                .contextMenu {
-                                    if !locationManager.isRecording {
-                                        Button(action: {
-                                            editingPath = path
-                                            locationManager.loadPathForEditing(path)
-                                        }) {
-                                            Label("Edit", systemImage: "pencil")
-                                        }
-                                    }
-                                }
+                                RecordedPathRow(
+                                    path: path,
+                                    isRecording: locationManager.isRecording,
+                                    onEdit: {
+                                        editingPath = path
+                                        locationManager.loadPathForEditing(path)
+                                    },
+                                    formatTime: formatTime
+                                )
                             }
                             .onDelete(perform: deletePaths)
                         }
@@ -106,9 +92,10 @@ struct ContentView: View {
     }
     
     private func deletePaths(offsets: IndexSet) {
-        let reversedPaths = Array(pathStorage.recordedPaths.reversed())
-        for index in offsets {
-            let pathToDelete = reversedPaths[index]
+        let count = pathStorage.recordedPaths.count
+        let originalOffsets = offsets.map { count - 1 - $0 }
+        for index in originalOffsets {
+            let pathToDelete = pathStorage.recordedPaths[index]
             pathStorage.deletePath(pathToDelete)
         }
     }
@@ -118,6 +105,37 @@ struct ContentView: View {
         let minutes = Int(timeInterval) / 60 % 60
         let seconds = Int(timeInterval) % 60
         return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+    }
+}
+
+struct RecordedPathRow: View {
+    let path: RecordedPath
+    let isRecording: Bool
+    let onEdit: () -> Void
+    let formatTime: (TimeInterval) -> String
+
+    var body: some View {
+        NavigationLink(destination: PathMapView(recordedPath: path)) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text(path.name)
+                    .font(.headline)
+                Text("Distance: \(String(format: "%.2f", path.totalDistance / 1000)) km")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                Text("Duration: \(formatTime(path.totalDuration))")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.vertical, 5)
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            if !isRecording {
+                Button(action: onEdit) {
+                    Label("Resume", systemImage: "pencil")
+                }
+                .tint(.blue)
+            }
+        }
     }
 }
 
