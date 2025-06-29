@@ -15,10 +15,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var elapsedTime: TimeInterval = 0
     @Published var currentLocation: CLLocation?
     @Published var currentActivity: Activity<PathRecorderAttributes>?
-    @Published var isEditingMode = false
-    
-    // Store the original path being edited
-    private var editingPath: RecordedPath?
+    @Published var editingPathId: UUID? = nil
     
     // Properties for improved distance calculation
     private var lastProcessedTime: Date?
@@ -64,13 +61,11 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         startActivityTimer()
     }
     
-    func stopRecording(pathStorage: PathStorage) {
+    func stopRecording(pathStorage: PathStorage) {        // Save the current path before stopping if pathStorage is provided
         // Ensure UI updates happen on main thread
         DispatchQueue.main.async {
             self.isRecording = false
             self.isPaused = false
-            self.isEditingMode = false
-            self.editingPath = nil // Clear the original path reference
             self.locationManager.stopUpdatingLocation()
             
             // Stop and invalidate the timer
@@ -78,6 +73,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             
             self.endLiveActivity()
             self.saveCurrentPath(to: pathStorage)
+            self.editingPathId = nil
         }
     }
     
@@ -349,24 +345,22 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         lastTimerUpdate = nil
     }
 
-    func loadPathForEditing(_ path: RecordedPath) {
+    func loadPathForEditing(_ path: RecordedPath, pathStorage: PathStorage) {
         guard !isRecording else {
             print("Cannot load path for editing while recording is active")
             return
         }
-        
-        // Store the original path for later updating
-        self.editingPath = path
-        
+
         // Load the existing data
         self.locations = path.locations
         self.totalDistance = path.totalDistance
         self.elapsedTime = path.totalDuration
+        self.startTime = path.startTime
         
         // Set up recording state for editing
         self.isRecording = true
         self.isPaused = true // Start in paused state as requested
-        self.isEditingMode = true
+        self.editingPathId = path.id
 
         // Set up for continuing the path
         self.currentSegmentId = UUID() // New segment for continuation
@@ -382,37 +376,23 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         print("Loaded existing path for editing - Distance: \(totalDistance)m, Duration: \(elapsedTime)s")
     }
     
-    func getUpdatedPath() -> RecordedPath? {
-        guard let original = editingPath else { return nil }
-        
-        return RecordedPath(
-            id: original.id,
-            startTime: original.startTime,
-            totalDuration: elapsedTime,
-            totalDistance: totalDistance,
-            locations: locations,
-            name: original.name
-        )
-    }
-    
     func saveCurrentPath(to pathStorage: PathStorage) {
         guard let startTime = startTime else { return }
 
-        if editingPath != nil {
-            // Update the existing path
-            if let updatedPath = getUpdatedPath() {
-                pathStorage.updatePath(updatedPath)
-            }
-        } else {
-            // Create new path
-            let recordedPath = RecordedPath(
-                startTime: startTime,
-                totalDuration: elapsedTime,
-                totalDistance: totalDistance,
-                locations: locations
-            )
-            pathStorage.savePath(recordedPath)
+        if (editingPathId != nil) {
+            // If editing, delete the old path immediately after loading for editing
+            pathStorage.deletePath(id: editingPathId!)
         }
+        
+        // Create new path
+        let recordedPath = RecordedPath(
+            startTime: startTime,
+            totalDuration: elapsedTime,
+            totalDistance: totalDistance,
+            locations: locations
+        )
+        pathStorage.savePath(recordedPath)
+        
     }
     
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {

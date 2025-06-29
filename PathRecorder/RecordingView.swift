@@ -15,9 +15,9 @@ struct RecordingView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
-                Text(locationManager.isEditingMode ? "Editing Path..." : "Recording in progress...")
+                Text(locationManager.editingPathId != nil ? "Editing Path..." : "Recording in progress...")
                     .font(.title2)
-                    .foregroundColor(locationManager.isEditingMode != nil ? .blue : .red)
+                    .foregroundColor(locationManager.editingPathId != nil ? .blue : .red)
                 
                 VStack(alignment: .leading, spacing: 10) {
                     if let location = locationManager.currentLocation {

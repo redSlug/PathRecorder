@@ -17,15 +17,6 @@ struct RecordedPath: Identifiable, Codable {
         self.locations = locations
         self.name = "Path \(DateFormatter.localizedString(from: startTime, dateStyle: .short, timeStyle: .short))"
     }
-    
-    init(id: UUID, startTime: Date, totalDuration: TimeInterval, totalDistance: Double, locations: [GPSLocation], name: String) {
-        self.id = id
-        self.startTime = startTime
-        self.totalDuration = totalDuration
-        self.totalDistance = totalDistance
-        self.locations = locations
-        self.name = name
-    }
 
     static func == (lhs: RecordedPath, rhs: RecordedPath) -> Bool {
         return lhs.id == rhs.id
@@ -65,16 +56,9 @@ class PathStorage: ObservableObject {
         saveToUserDefaults()
     }
     
-    func deletePath(_ path: RecordedPath) {
-        recordedPaths.removeAll { $0.id == path.id }
+    func deletePath(id: UUID) {
+        recordedPaths.removeAll { $0.id == id }
         saveToUserDefaults()
-    }
-    
-    func updatePath(_ updatedPath: RecordedPath) {
-        if let index = recordedPaths.firstIndex(where: { $0.id == updatedPath.id }) {
-            recordedPaths[index] = updatedPath
-            saveToUserDefaults()
-        }
     }
     
     private func saveToUserDefaults() {

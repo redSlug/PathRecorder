@@ -42,10 +42,10 @@ struct ContentView: View {
                                     path: path,
                                     onEdit: {
                                         showRecordingSheet = true
-                                        locationManager.loadPathForEditing(path)
+                                        locationManager.loadPathForEditing(path, pathStorage: pathStorage)
                                     },
                                     onDelete: {
-                                        pathStorage.deletePath(path)
+                                        pathStorage.deletePath(id: path.id)
                                     },
                                     formatTime: formatTime
                                 )
@@ -76,15 +76,6 @@ struct ContentView: View {
                     }
                 )
             }
-        }
-    }
-    
-    private func deletePaths(offsets: IndexSet) {
-        let count = pathStorage.recordedPaths.count
-        let originalOffsets = offsets.map { count - 1 - $0 }
-        for index in originalOffsets {
-            let pathToDelete = pathStorage.recordedPaths[index]
-            pathStorage.deletePath(pathToDelete)
         }
     }
 
