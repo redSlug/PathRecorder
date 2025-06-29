@@ -14,6 +14,8 @@ struct ContentView: View {
     @Query private var items: [Item]
     @StateObject private var locationManager = LocationManager()
     @StateObject private var pathStorage = PathStorage()
+    @State private var showRecordingSheet = false
+    @State private var editingPath: RecordedPath? = nil
 
     var body: some View {
         NavigationStack {
@@ -21,8 +23,10 @@ struct ContentView: View {
                 Button(action: {
                     if locationManager.isRecording {
                         locationManager.stopRecording(pathStorage: pathStorage)
+                        showRecordingSheet = false
                     } else {
                         locationManager.startRecording()
+                        showRecordingSheet = true
                     }
                 }) {
                     Text(locationManager.isRecording ? "Stop Recording" : "Start Recording")
@@ -34,48 +38,6 @@ struct ContentView: View {
                         .cornerRadius(10)
                 }
                 .padding(.horizontal)
-                
-                if locationManager.isRecording {
-                    Button(action: {
-                        if locationManager.isPaused {
-                            locationManager.resumeRecording()
-                        } else {
-                            locationManager.pauseRecording()
-                        }
-                    }) {
-                        Text(locationManager.isPaused ? "Resume Recording" : "Pause Recording")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(locationManager.isPaused ? Color.green : Color.orange)
-                            .cornerRadius(10)
-                    }
-                    .padding(.horizontal)
-                }
-                
-                if locationManager.isRecording {
-                    Text("Recording in progress...")
-                        .foregroundColor(.red)
-                    
-                    VStack(alignment: .leading, spacing: 10) {
-                        if let location = locationManager.currentLocation {
-                            Text("GPS: \(String(format: "%.6f", location.coordinate.latitude)), \(String(format: "%.6f", location.coordinate.longitude))")
-                        }
-                        Text("Distance: \(String(format: "%.2f", locationManager.totalDistance / 1000)) km")
-                        if locationManager.elapsedTime > 0 {
-                            Text("Time: \(formatTime(locationManager.elapsedTime))")
-                        }
-                        if locationManager.isPaused {
-                            Text("PAUSED")
-                                .foregroundColor(.orange)
-                                .fontWeight(.bold)
-                        }
-                    }
-                    .padding()
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(10)
-                }
                 
                 if !pathStorage.recordedPaths.isEmpty {
                     VStack(alignment: .leading, spacing: 10) {
@@ -101,6 +63,7 @@ struct ContentView: View {
                                 .contextMenu {
                                     if !locationManager.isRecording {
                                         Button(action: {
+                                            editingPath = path
                                             locationManager.loadPathForEditing(path)
                                         }) {
                                             Label("Edit", systemImage: "pencil")
@@ -119,6 +82,25 @@ struct ContentView: View {
             .navigationTitle("Path Recorder")
             .onAppear {
                 locationManager.requestPermission()
+            }
+            .fullScreenCover(isPresented: Binding(
+                get: { showRecordingSheet || editingPath != nil },
+                set: { newValue in
+                    if !newValue {
+                        showRecordingSheet = false
+                        editingPath = nil
+                    }
+                })
+            ) {
+                RecordingView(
+                    locationManager: locationManager,
+                    pathStorage: pathStorage,
+                    editingPath: editingPath,
+                    onStop: {
+                        showRecordingSheet = false
+                        editingPath = nil
+                    }
+                )
             }
         }
     }
