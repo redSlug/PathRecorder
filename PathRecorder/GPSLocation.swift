@@ -64,12 +64,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         startActivityTimer()
     }
     
-    func stopRecording(pathStorage: PathStorage? = nil) {
-        // Save the current path before stopping if pathStorage is provided
-        if let pathStorage = pathStorage {
-            saveCurrentPath(to: pathStorage)
-        }
-        
+    func stopRecording(pathStorage: PathStorage) {
         // Ensure UI updates happen on main thread
         DispatchQueue.main.async {
             self.isRecording = false
@@ -82,6 +77,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             self.stopActivityTimer()
             
             self.endLiveActivity()
+            self.saveCurrentPath(to: pathStorage)
         }
     }
     
@@ -127,18 +123,19 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
         
+        // Don't process location updates if recording is not active or is paused
+        guard self.isRecording && !self.isPaused else { return }
+        
+        // Filter location by accuracy
+        guard location.horizontalAccuracy <= self.minAccuracy else {
+            print("Skipping location due to poor accuracy: \(location.horizontalAccuracy)m")
+            return
+        }
+        
         // Ensure updates happen on the main thread
         DispatchQueue.main.async {
             self.currentLocation = location
-            
-            // Don't process location updates if recording is not active or is paused
-            guard self.isRecording && !self.isPaused else { return }
-            
-            // Filter location by accuracy
-            guard location.horizontalAccuracy <= self.minAccuracy else {
-                print("Skipping location due to poor accuracy: \(location.horizontalAccuracy)m")
-                return
-            }
+        
             
             // Time-based filtering
             if let lastTime = self.lastProcessedTime,

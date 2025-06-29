@@ -10,8 +10,6 @@ import SwiftData
 import CoreLocation
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
     @StateObject private var locationManager = LocationManager()
     @StateObject private var pathStorage = PathStorage()
     @State private var showRecordingSheet = false
