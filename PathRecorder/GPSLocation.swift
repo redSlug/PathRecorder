@@ -122,17 +122,16 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         // Don't process location updates if recording is not active or is paused
         guard self.isRecording && !self.isPaused else { return }
         
-        // Filter location by accuracy
-        guard location.horizontalAccuracy <= self.minAccuracy else {
-            print("Skipping location due to poor accuracy: \(location.horizontalAccuracy)m")
-            return
-        }
-        
         // Ensure updates happen on the main thread
         DispatchQueue.main.async {
             self.currentLocation = location
         
-            
+            // Filter location by accuracy
+            if location.horizontalAccuracy > self.minAccuracy {
+                print("Skipping location due to poor accuracy: \(location.horizontalAccuracy)m")
+                return
+            }
+
             // Time-based filtering
             if let lastTime = self.lastProcessedTime,
                location.timestamp.timeIntervalSince(lastTime) < self.minTimeInterval {

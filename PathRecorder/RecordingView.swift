@@ -36,6 +36,13 @@ struct RecordingView: View {
                 .padding()
                 .background(Color.gray.opacity(0.1))
                 .cornerRadius(10)
+                
+                // Live map showing current path
+                LivePathMapView(locationManager: locationManager)
+                    .frame(height: 300)
+                    .cornerRadius(12)
+                    .padding(.horizontal)
+                
                 HStack(spacing: 20) {
                     Button(action: {
                         onStop()
