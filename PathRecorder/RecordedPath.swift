@@ -23,7 +23,7 @@ struct RecordedPath: Identifiable, Codable {
     }
 }
 
-struct GPSLocation: Identifiable, Codable {
+struct GPSLocation: Identifiable, Codable, Equatable {
     let id = UUID()
     let latitude: Double
     let longitude: Double
