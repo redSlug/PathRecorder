@@ -82,6 +82,18 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         locationManager.allowsBackgroundLocationUpdates = true
         locationManager.pausesLocationUpdatesAutomatically = false
         locationManager.showsBackgroundLocationIndicator = true
+        // End any orphaned activities and restore the first available one
+        Task {
+            self.endLiveActivity()
+            // Wait briefly for cleanup
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
+            if let existingActivity = Activity<PathRecorderAttributes>.activities.first {
+                await MainActor.run {
+                    self.currentActivity = existingActivity
+                }
+                print("Restored existing Live Activity with ID: \(existingActivity.id)")
+            }
+        }
         loadRecordingStateIfNeeded()
     }
     
@@ -250,27 +262,28 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     // MARK: - Live Activity Methods
     private func startLiveActivity() {
-        // Check if Live Activities are available
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else { 
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
             print("Live Activities not available or not enabled")
-            return 
+            return
         }
-        
         // End any existing activity first to avoid duplicates
         endLiveActivity()
-        
         // Add a small delay to ensure cleanup is complete
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            // Assign first available activity if any
+            if let existingActivity = Activity<PathRecorderAttributes>.activities.first {
+                self.currentActivity = existingActivity
+                print("Live Activity already exists, not creating a new one.")
+                return
+            }
             let initialState = PathRecorderAttributes.ContentState(
                 latitude: self.currentLocation?.coordinate.latitude ?? 0,
                 longitude: self.currentLocation?.coordinate.longitude ?? 0,
                 distance: self.totalDistance,
-                elapsedTime: self.elapsedTime, // Use actual elapsed time instead of 0
-                isPaused: self.isPaused // Use actual paused state
+                elapsedTime: self.elapsedTime,
+                isPaused: self.isPaused
             )
-            
             let attributes = PathRecorderAttributes()
-            
             do {
                 let content = ActivityContent(state: initialState, staleDate: nil)
                 self.currentActivity = try Activity.request(
@@ -281,7 +294,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 print("Live Activity started successfully with ID: \(self.currentActivity?.id ?? "unknown")")
             } catch {
                 print("Error starting live activity: \(error.localizedDescription)")
-                // Log more details about the error
                 if let error = error as NSError? {
                     print("Error domain: \(error.domain), code: \(error.code)")
                     print("Error userInfo: \(error.userInfo)")
