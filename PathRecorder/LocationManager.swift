@@ -32,6 +32,49 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var activityUpdateTimer: Timer?
     private var lastTimerUpdate: Date?
     
+    // MARK: - Persistence Keys
+    private let recordingStateKey = "PathRecorder.RecordingState"
+
+    struct RecordingState: Codable {
+        let locations: [GPSLocation]
+        let totalDistance: Double
+        let elapsedTime: TimeInterval
+        let startTime: Date?
+        let isPaused: Bool
+        let editingPathId: UUID?
+    }
+
+    // MARK: - Persistence Methods
+    private func saveRecordingState() {
+        let state = RecordingState(
+            locations: self.locations,
+            totalDistance: self.totalDistance,
+            elapsedTime: self.elapsedTime,
+            startTime: self.startTime,
+            isPaused: self.isPaused,
+            editingPathId: self.editingPathId
+        )
+        if let data = try? JSONEncoder().encode(state) {
+            UserDefaults.standard.set(data, forKey: recordingStateKey)
+        }
+    }
+
+    private func loadRecordingStateIfNeeded() {
+        guard let data = UserDefaults.standard.data(forKey: recordingStateKey),
+              let state = try? JSONDecoder().decode(RecordingState.self, from: data),
+              !state.locations.isEmpty else { return }
+        self.locations = state.locations
+        self.totalDistance = state.totalDistance
+        self.elapsedTime = state.elapsedTime
+        self.startTime = state.startTime
+        self.isPaused = true // Always restore to paused state
+        self.isRecording = true
+        self.currentSegmentId = UUID()
+        self.editingPathId = state.editingPathId // Restore editingPathId
+        print("Restored in-progress recording from disk")
+        self.startLiveActivity()
+    }
+
     override init() {
         super.init()
         locationManager.delegate = self
@@ -39,6 +82,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         locationManager.allowsBackgroundLocationUpdates = true
         locationManager.pausesLocationUpdatesAutomatically = false
         locationManager.showsBackgroundLocationIndicator = true
+        loadRecordingStateIfNeeded()
     }
     
     func requestPermission() {
@@ -74,6 +118,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             self.endLiveActivity()
             self.saveCurrentPath(to: pathStorage)
             self.editingPathId = nil
+            
+            UserDefaults.standard.removeObject(forKey: self.recordingStateKey) // Clear saved state
         }
     }
     
@@ -89,6 +135,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             
             // Update Live Activity to show paused state
             self.updateLiveActivity()
+            
+            self.saveRecordingState() // Save when paused
         }
     }
     
@@ -176,7 +224,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             self.lastProcessedLocation = avgLocation
             print("Location recorded")
             
-            
+            self.saveRecordingState() // Save after each update
             self.updateLiveActivity()
         }
     }
@@ -419,5 +467,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         @unknown default:
             print("location unknown status")
         }
+    }
+    
+    var lastRecordedLocation: CLLocation? {
+        locations.last.map { CLLocation(latitude: $0.latitude, longitude: $0.longitude) }
     }
 }

@@ -59,6 +59,10 @@ struct ContentView: View {
             .navigationTitle("Path Recorder")
             .onAppear {
                 locationManager.requestPermission()
+                // Automatically show recording view if in-progress recording exists
+                if locationManager.isRecording && locationManager.isPaused {
+                    showRecordingSheet = true
+                }
             }
             .fullScreenCover(isPresented: Binding(
                 get: { showRecordingSheet },

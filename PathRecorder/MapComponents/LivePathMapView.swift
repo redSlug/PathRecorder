@@ -15,6 +15,11 @@ struct LivePathMapView: View {
                 center: currentLocation.coordinate,
                 span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
             ))
+        } else if let lastLocation = locationManager.lastRecordedLocation {
+            _region = State(initialValue: MKCoordinateRegion(
+                center: lastLocation.coordinate,
+                span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+            ))
         } else {
             _region = State(initialValue: nil)
         }
@@ -136,4 +141,4 @@ struct LivePathMapView: View {
             }
         }
     }
-} 
+}
