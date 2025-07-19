@@ -6,7 +6,7 @@ struct MapRenderingHelpers {
         if let polyline = overlay as? MKPolyline {
             let renderer = MKPolylineRenderer(polyline: polyline)
             renderer.strokeColor = UIColor.blue
-            renderer.lineWidth = 3.0
+            renderer.lineWidth = 5.0
             renderer.lineCap = .round
             renderer.lineJoin = .round
             return renderer

@@ -95,8 +95,3 @@ struct RecordingView: View {
         return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
     }
 }
-
-// Preview for Xcode Canvas
-#Preview {
-    RecordingView(locationManager: LocationManager(), pathStorage: PathStorage(), onStop: {})
-}

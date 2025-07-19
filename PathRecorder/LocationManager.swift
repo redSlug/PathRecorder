@@ -72,6 +72,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         self.currentSegmentId = UUID()
         self.editingPathId = state.editingPathId // Restore editingPathId
         print("Restored in-progress recording from disk")
+        locationManager.startUpdatingLocation()
         self.startLiveActivity()
     }
 
@@ -179,12 +180,11 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
         
-        // Don't process location updates if recording is not active or is paused
-        guard self.isRecording && !self.isPaused else { return }
-        
         // Ensure updates happen on the main thread
         DispatchQueue.main.async {
             self.currentLocation = location
+
+            if !self.isRecording || self.isPaused { return }
         
             // Filter location by accuracy
             if location.horizontalAccuracy > self.minAccuracy {

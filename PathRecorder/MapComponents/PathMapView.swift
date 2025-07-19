@@ -6,10 +6,11 @@ struct PathMapView: View {
     let recordedPath: RecordedPath
     @State private var region: MKCoordinateRegion
     @State private var pathSegments: [PathSegment] = []
-    @State private var isAutoCentering: Bool = true
     
-    init(recordedPath: RecordedPath) {
+    @ObservedObject var locationManager: LocationManager
+    init(recordedPath: RecordedPath, locationManager: LocationManager) {
         self.recordedPath = recordedPath
+        self.locationManager = locationManager
         // Group locations by segment first
         let segments = Dictionary(grouping: recordedPath.locations, by: { $0.segmentId })
         let pathSegments = segments.map { segmentId, locations in
@@ -24,35 +25,29 @@ struct PathMapView: View {
         // Calculate the proper region to fit all coordinates
         let allCoordinates = pathSegments.flatMap { $0.coordinates }
         let initialRegion: MKCoordinateRegion
-        if allCoordinates.isEmpty {
-            initialRegion = MKCoordinateRegion(
-                center: CLLocationCoordinate2D(latitude: 0, longitude: 0),
-                span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+
+        let minLat = allCoordinates.map { $0.latitude }.min() ?? 0
+        let maxLat = allCoordinates.map { $0.latitude }.max() ?? 0
+        let minLon = allCoordinates.map { $0.longitude }.min() ?? 0
+        let maxLon = allCoordinates.map { $0.longitude }.max() ?? 0
+        let centerLat = (minLat + maxLat) / 2
+        let centerLon = (minLon + maxLon) / 2
+        let latDelta = (maxLat - minLat) * 1.2
+        let lonDelta = (maxLon - minLon) * 1.2
+        initialRegion = MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon),
+            span: MKCoordinateSpan(
+                latitudeDelta: max(latDelta, 0.001),
+                longitudeDelta: max(lonDelta, 0.001)
             )
-        } else {
-            let minLat = allCoordinates.map { $0.latitude }.min() ?? 0
-            let maxLat = allCoordinates.map { $0.latitude }.max() ?? 0
-            let minLon = allCoordinates.map { $0.longitude }.min() ?? 0
-            let maxLon = allCoordinates.map { $0.longitude }.max() ?? 0
-            let centerLat = (minLat + maxLat) / 2
-            let centerLon = (minLon + maxLon) / 2
-            let latDelta = (maxLat - minLat) * 1.2
-            let lonDelta = (maxLon - minLon) * 1.2
-            initialRegion = MKCoordinateRegion(
-                center: CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon),
-                span: MKCoordinateSpan(
-                    latitudeDelta: max(latDelta, 0.001),
-                    longitudeDelta: max(lonDelta, 0.001)
-                )
-            )
-        }
+        )
+        
         _region = State(initialValue: initialRegion)
     }
 
     var body: some View {
         MapWithPolylines(
-            region: $region,
-            isAutoCentering: $isAutoCentering,
+            region: region,
             locations: recordedPath.locations,
             pathSegments: pathSegments
         )
