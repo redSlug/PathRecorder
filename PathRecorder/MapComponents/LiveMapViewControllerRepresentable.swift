@@ -6,6 +6,7 @@ struct LiveMapViewControllerRepresentable: UIViewControllerRepresentable {
     var locations: [GPSLocation]
     var isAutoCentering: Bool
     var onUserInteraction: (() -> Void)? = nil
+    var onMapTouched: (() -> Void)? = nil
 
     func makeUIViewController(context: Context) -> LiveMapViewController {
         let vc = LiveMapViewController()
@@ -42,6 +43,9 @@ struct LiveMapViewControllerRepresentable: UIViewControllerRepresentable {
             DispatchQueue.main.async {
                 self.parent.region = region
             }
+        }
+        func mapTouched(at coordinate: CLLocationCoordinate2D, point: CGPoint) {
+            parent.onMapTouched?()
         }
     }
 } 

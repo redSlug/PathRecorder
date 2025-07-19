@@ -3,6 +3,7 @@ import MapKit
 
 protocol LiveMapViewControllerDelegate: AnyObject {
     func regionDidChange(_ region: MKCoordinateRegion, userInitiated: Bool)
+    func mapTouched(at coordinate: CLLocationCoordinate2D, point: CGPoint)
 }
 
 class LiveMapViewController: UIViewController, MKMapViewDelegate {
@@ -10,11 +11,7 @@ class LiveMapViewController: UIViewController, MKMapViewDelegate {
     weak var delegate: LiveMapViewControllerDelegate?
     private var overlays: [UUID: MKPolyline] = [:]
     private var annotations: [UUID: MKPointAnnotation] = [:]
-    var isAutoCentering: Bool = true {
-        didSet {
-            mapView.isUserInteractionEnabled = !isAutoCentering
-        }
-    }
+    var isAutoCentering: Bool = true
     private var isProgrammaticChange = false
     private var isUserInteracting = false
     private var bufferedLocations: [GPSLocation]? = nil
@@ -25,7 +22,7 @@ class LiveMapViewController: UIViewController, MKMapViewDelegate {
         mapView.frame = view.bounds
         mapView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         view.addSubview(mapView)
-        mapView.isUserInteractionEnabled = !isAutoCentering
+        mapView.isUserInteractionEnabled = true // Always allow user interaction
     }
 
     func setRegion(_ region: MKCoordinateRegion, animated: Bool) {
@@ -48,7 +45,6 @@ class LiveMapViewController: UIViewController, MKMapViewDelegate {
 
     func setIsAutoCentering(_ value: Bool) {
         isAutoCentering = value
-        mapView.isUserInteractionEnabled = !value
         // If auto-centering is being enabled, reset user interaction state
         if value {
             isUserInteracting = false
@@ -131,4 +127,21 @@ class LiveMapViewController: UIViewController, MKMapViewDelegate {
         annotationView?.image = MapRenderingHelpers.cachedBlueCircleImage
         return annotationView
     }
-} 
+    
+    // MARK: - Touch Detection
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        super.touchesBegan(touches, with: event)
+        
+        guard let touch = touches.first else { return }
+        let touchPoint = touch.location(in: mapView)
+        let coordinate = mapView.convert(touchPoint, toCoordinateFrom: mapView)
+        
+        // Disable auto-centering when user touches the map
+        if isAutoCentering {
+            isAutoCentering = false
+        }
+        
+        // Notify delegate about the touch immediately when finger touches down
+        delegate?.mapTouched(at: coordinate, point: touchPoint)
+    }
+}

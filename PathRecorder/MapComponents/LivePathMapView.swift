@@ -33,7 +33,11 @@ struct LivePathMapView: View {
             LiveMapViewControllerRepresentable(
                 region: $region,
                 locations: locationManager.locations,
-                isAutoCentering: isAutoCentering
+                isAutoCentering: isAutoCentering,
+                onMapTouched: {
+                    // Disable auto-centering when user touches the map
+                    isAutoCentering = false
+                }
             )
             .onChange(of: locationManager.locations.count) { _ in
                 if isAutoCentering {
@@ -53,26 +57,27 @@ struct LivePathMapView: View {
                 updateRegion()
             }
             
-            VStack {
-                HStack {
-                    Spacer()
-                    Button(action: {
-                        isAutoCentering.toggle()
-                        if isAutoCentering {
+            // Only show button when auto-centering is disabled
+            if !isAutoCentering {
+                VStack {
+                    HStack {
+                        Spacer()
+                        Button(action: {
+                            isAutoCentering = true
                             updateRegion()
+                        }) {
+                            Image(systemName: "location.fill")
+                                .padding()
+                                .background(Color.white.opacity(0.8))
+                                .clipShape(Circle())
+                                .shadow(radius: 2)
                         }
-                    }) {
-                        Image(systemName: isAutoCentering ? "location.fill" : "location.slash.fill")
-                            .padding()
-                            .background(Color.white.opacity(0.8))
-                            .clipShape(Circle())
-                            .shadow(radius: 2)
+                        .padding()
+                        .opacity(region != nil ? 1 : 0.5)
+                        .disabled(region == nil)
                     }
-                    .padding()
-                    .opacity(region != nil ? 1 : 0.5)
-                    .disabled(region == nil)
+                    Spacer()
                 }
-                Spacer()
             }
         }
     }
