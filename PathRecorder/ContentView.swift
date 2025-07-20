@@ -20,6 +20,32 @@ struct ContentView: View {
     var body: some View {
         NavigationStack(path: $navigationPath) {
             VStack(spacing: 20) {
+                Text("No history yet — start recording to track your journeys.")
+                    .font(.headline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity, maxHeight: pathStorage.recordedPaths.isEmpty ? .infinity : 0, alignment: .center)
+                    .opacity(pathStorage.recordedPaths.isEmpty ? 1 : 0)
+                List {
+                    ForEach(pathStorage.recordedPaths.reversed()) { path in
+                        RecordedPathRow(
+                            path: path,
+                            onEdit: {
+                                showRecordingSheet = true
+                                locationManager.loadPathForEditing(path, pathStorage: pathStorage)
+                            },
+                            onDelete: {
+                                pathStorage.deletePath(id: path.id)
+                            },
+                            formatTime: formatTime,
+                            onSelect: {
+                                navigationPath.append(path)
+                            }
+                        )
+                    }
+                }
+                .listStyle(.plain)
+                
                 Button(action: {
                     locationManager.startRecording()
                     showRecordingSheet = true
@@ -33,36 +59,9 @@ struct ContentView: View {
                         .cornerRadius(10)
                 }
                 .padding(.horizontal)
-
-                if !pathStorage.recordedPaths.isEmpty {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Recorded Paths")
-                            .font(.headline)
-                            .padding(.horizontal)
-                        List {
-                            ForEach(pathStorage.recordedPaths.reversed()) { path in
-                                RecordedPathRow(
-                                    path: path,
-                                    onEdit: {
-                                        showRecordingSheet = true
-                                        locationManager.loadPathForEditing(path, pathStorage: pathStorage)
-                                    },
-                                    onDelete: {
-                                        pathStorage.deletePath(id: path.id)
-                                    },
-                                    formatTime: formatTime,
-                                    onSelect: {
-                                        navigationPath.append(path)
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-                Spacer()
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding()
-            .navigationTitle("Path Recorder")
             .onAppear {
                 locationManager.requestPermission()
                 // Automatically show recording view if in-progress recording exists
@@ -93,6 +92,7 @@ struct ContentView: View {
                     }
                 )
             }
+            .navigationTitle("Recorded Paths")
             .navigationDestination(for: RecordedPath.self) { path in
                 let view = PathMapView(recordedPath: path, locationManager: locationManager, pathStorage: pathStorage, showRenameSheetOnAppear: showRenameSheet)
                 showRenameSheet = false
