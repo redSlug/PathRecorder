@@ -5,6 +5,8 @@ struct PhotoPagerView: View {
     @Binding var selectedIndex: Int
     @State private var showShareSheet = false
     @State private var imageToShare: UIImage?
+    @State private var showDeleteAlert = false
+    let onDeletePhoto: (PathPhoto) -> Void
 
     var body: some View {
         Group {
@@ -12,44 +14,71 @@ struct PhotoPagerView: View {
                 Text("No photos at this location.")
                     .padding()
             } else {
-                VStack(spacing: 0) {
-                    TabView(selection: $selectedIndex) {
-                        ForEach(Array(photos.enumerated()), id: \.element.id) { idx, photo in
-                            VStack {
-                                if let image = photo.image {
-                                    Text(DateFormatter.localizedString(from: photo.timestamp, dateStyle: .medium, timeStyle: .short))
-                                        .font(.subheadline)
-                                    // Display GPS coordinate in readable format
-                                    Text(String(format: "Lat: %.5f, Lon: %.5f", photo.coordinate.latitude, photo.coordinate.longitude))
-                                        .font(.caption)
-                                    Image(uiImage: image)
-                                        .resizable()
-                                        .scaledToFit()
-                                        .frame(maxWidth: 400, maxHeight: 400)
-                                        .cornerRadius(16)
-                                        .padding()
-                                    Button(action: {
-                                        print("[PhotoPagerView] Sharing image: size=\(image.size), orientation=\(image.imageOrientation.rawValue), isCGImage=\(image.cgImage != nil), isCIImage=\(image.ciImage != nil)")
-                                        imageToShare = image
-                                        showShareSheet = true
-                                    }) {
-                                        Label("Share Photo", systemImage: "square.and.arrow.up")
-                                            .font(.headline)
+                ZStack(alignment: .topLeading) {
+                    VStack(spacing: 0) {
+                        TabView(selection: $selectedIndex) {
+                            ForEach(Array(photos.enumerated()), id: \.element.id) { idx, photo in
+                                VStack {
+                                    if let image = photo.image {
+                                        Text(DateFormatter.localizedString(from: photo.timestamp, dateStyle: .medium, timeStyle: .short))
+                                            .font(.subheadline)
+                                        // Display GPS coordinate in readable format
+                                        Text(String(format: "Lat: %.5f, Lon: %.5f", photo.coordinate.latitude, photo.coordinate.longitude))
+                                            .font(.caption)
+                                        Image(uiImage: image)
+                                            .resizable()
+                                            .scaledToFit()
+                                            .frame(maxWidth: 400, maxHeight: 400)
+                                            .cornerRadius(16)
+                                            .padding()
+                                        Button(action: {
+                                            print("[PhotoPagerView] Sharing image: size=\(image.size), orientation=\(image.imageOrientation.rawValue), isCGImage=\(image.cgImage != nil), isCIImage=\(image.ciImage != nil)")
+                                            imageToShare = image
+                                            showShareSheet = true
+                                        }) {
+                                            Label("Share Photo", systemImage: "square.and.arrow.up")
+                                                .font(.headline)
+                                        }
+                                    } else {
+                                        Text("Photo unavailable")
                                     }
-                                } else {
-                                    Text("Photo unavailable")
                                 }
+                                .frame(maxHeight: .infinity)
+                                .tag(idx)
                             }
-                            .frame(maxHeight: .infinity)
-                            .tag(idx)
                         }
+                        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
+                        .frame(maxHeight: .infinity)
                     }
-                    .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
                     .frame(maxHeight: .infinity)
+                    .padding()
+                    
+                    // Delete button in top left corner
+                    Button(action: {
+                        showDeleteAlert = true
+                    }) {
+                        Image(systemName: "trash")
+                            .font(.title2)
+                            .foregroundColor(.red)
+                            .padding(12)
+                            .background(Color.white.opacity(0.8))
+                            .clipShape(Circle())
+                            .shadow(radius: 4)
+                    }
+                    .padding()
                 }
-                .frame(maxHeight: .infinity)
-                .padding()
             }
+        }
+        .alert("Delete Photo", isPresented: $showDeleteAlert) {
+            Button("Delete", role: .destructive) {
+                if selectedIndex < photos.count {
+                    let photoToDelete = photos[selectedIndex]
+                    onDeletePhoto(photoToDelete)
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Are you sure you want to delete this photo? This action cannot be undone.")
         }
         .sheet(item: $imageToShare) { image in
             ShareSheet(activityItems: [image])

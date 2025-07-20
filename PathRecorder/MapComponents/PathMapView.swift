@@ -56,20 +56,24 @@ struct PathMapView: View {
     @State private var selectedPhotoIndex: Int = 0
 
     var body: some View {
+        let currentPath = pathStorage.path(for: recordedPath.id) ?? recordedPath
         MapWithPolylines(
             region: region,
-            locations: recordedPath.locations,
+            locations: currentPath.locations,
             pathSegments: pathSegments,
-            photos: recordedPath.photos,
+            photos: currentPath.photos,
             onPhotoTapped: { tappedPhoto in
+                // Always get the most current path data when a photo is tapped
+                let latestPath = pathStorage.path(for: recordedPath.id) ?? recordedPath
+                
                 // Find all photos within 10 meters of the tapped coordinate
                 let tappedLocation = CLLocation(latitude: tappedPhoto.coordinate.latitude, longitude: tappedPhoto.coordinate.longitude)
-                let nearbyPhotos = recordedPath.photos.filter {
+                let nearbyPhotos = latestPath.photos.filter {
                     let photoLocation = CLLocation(latitude: $0.coordinate.latitude, longitude: $0.coordinate.longitude)
                     return tappedLocation.distance(from: photoLocation) <= 10.0 // meters
                 }
                 selectedPhotos = nearbyPhotos
-                // Show the tapped photo first if multiple
+                // Show the tapped photo first if multiple (only if it still exists)
                 if let idx = nearbyPhotos.firstIndex(where: { $0.id == tappedPhoto.id }) {
                     selectedPhotoIndex = idx
                 } else {
@@ -77,7 +81,8 @@ struct PathMapView: View {
                 }
             }
         )
-        .navigationTitle(pathStorage.path(for: recordedPath.id)?.name ?? editedName)
+        .id(currentPath.photos.count) // Force refresh when photo count changes
+        .navigationTitle(currentPath.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -111,10 +116,11 @@ struct PathMapView: View {
                     )
                     .padding(.horizontal)
                 Button(action: {
-                    var updatedPath = recordedPath
-                    updatedPath.editName(editedName)
-                    recordedPath = updatedPath
-                    pathStorage.updatePath(updatedPath)
+                    if var currentPath = pathStorage.path(for: recordedPath.id) {
+                        currentPath.editName(editedName)
+                        pathStorage.updatePath(currentPath)
+                        recordedPath = currentPath
+                    }
                     isEditingName = false
                 }) {
                     Text("Set Name")
@@ -153,6 +159,7 @@ struct PathMapView: View {
                 // Reset editedName to match storage if not saved
                 if let latest = pathStorage.path(for: recordedPath.id) {
                     editedName = latest.name
+                    recordedPath = latest
                 }
             }
         }
@@ -161,7 +168,36 @@ struct PathMapView: View {
             set: { if !$0 { selectedPhotos = nil } }
         )) {
             if let photos = selectedPhotos {
-                PhotoPagerView(photos: photos, selectedIndex: $selectedPhotoIndex)
+                PhotoPagerView(
+                    photos: photos, 
+                    selectedIndex: $selectedPhotoIndex,
+                    onDeletePhoto: { photoToDelete in
+                        // Get the current path from storage
+                        if var currentPath = pathStorage.path(for: recordedPath.id) {
+                            // Remove photo from the path
+                            currentPath.deletePhoto(photoToDelete)
+                            
+                            // Update the stored path
+                            pathStorage.updatePath(currentPath)
+                            
+                            // Update the local recordedPath state as well
+                            recordedPath = currentPath
+                            
+                            // Update the selected photos list with the latest data
+                            selectedPhotos?.removeAll { $0.id == photoToDelete.id }
+                            
+                            // If no photos left, close the sheet
+                            if selectedPhotos?.isEmpty == true {
+                                selectedPhotos = nil
+                            } else if let remainingPhotos = selectedPhotos {
+                                // Adjust selected index if needed
+                                if selectedPhotoIndex >= remainingPhotos.count {
+                                    selectedPhotoIndex = max(0, remainingPhotos.count - 1)
+                                }
+                            }
+                        }
+                    }
+                )
             } else {
                 Text("No photos at this location.")
                     .padding()
