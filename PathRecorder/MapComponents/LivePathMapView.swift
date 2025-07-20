@@ -13,7 +13,8 @@ struct LivePathMapView: View {
     }
     
     private func updateRegion() {
-        if let currentLocation = locationManager.currentLocation {
+        // Only update region if a valid location is available
+        if let currentLocation = locationManager.currentLocation, !locationManager.isPaused {
             region = MKCoordinateRegion(
                 center: currentLocation.coordinate,
                 span: MKCoordinateSpan(latitudeDelta: 0.002, longitudeDelta: 0.002)
@@ -23,8 +24,6 @@ struct LivePathMapView: View {
                 center: lastLocation.coordinate,
                 span: MKCoordinateSpan(latitudeDelta: 0.002, longitudeDelta: 0.002)
             )
-        } else {
-            region = nil
         }
     }
     
@@ -35,7 +34,6 @@ struct LivePathMapView: View {
                 locations: locationManager.locations,
                 isAutoCentering: isAutoCentering,
                 onMapTouched: {
-                    // Disable auto-centering when user touches the map
                     isAutoCentering = false
                 }
             )
@@ -56,7 +54,22 @@ struct LivePathMapView: View {
                 isAutoCentering = true
                 updateRegion()
             }
-            
+
+            // Show GPS loading overlay if region is nil
+            if region == nil {
+                VStack {
+                    Spacer()
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle())
+                        .scaleEffect(1.5)
+                    Text("Waiting for GPS...")
+                        .font(.headline)
+                        .padding(.top, 8)
+                    Spacer()
+                }
+                .background(Color.white.opacity(0.7))
+            }
+
             // Only show button when auto-centering is disabled
             if !isAutoCentering {
                 VStack {

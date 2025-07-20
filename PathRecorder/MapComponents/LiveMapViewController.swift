@@ -75,20 +75,17 @@ class LiveMapViewController: UIViewController, MKMapViewDelegate {
                 mapView.addOverlay(polyline)
             }
         }
-        let locationIds = Set(locations.map { $0.id })
-        for (id, annotation) in annotations where !locationIds.contains(id) {
+        // Only show annotation for the last location
+        // Remove all existing annotations first
+        for (_, annotation) in annotations {
             mapView.removeAnnotation(annotation)
-            annotations.removeValue(forKey: id)
         }
-        for loc in locations {
-            if let annotation = annotations[loc.id] {
-                annotation.coordinate = CLLocationCoordinate2D(latitude: loc.latitude, longitude: loc.longitude)
-            } else {
-                let annotation = MKPointAnnotation()
-                annotation.coordinate = CLLocationCoordinate2D(latitude: loc.latitude, longitude: loc.longitude)
-                annotations[loc.id] = annotation
-                mapView.addAnnotation(annotation)
-            }
+        annotations.removeAll()
+        if let lastLocation = locations.last {
+            let annotation = MKPointAnnotation()
+            annotation.coordinate = CLLocationCoordinate2D(latitude: lastLocation.latitude, longitude: lastLocation.longitude)
+            annotations[lastLocation.id] = annotation
+            mapView.addAnnotation(annotation)
         }
     }
 
@@ -124,7 +121,8 @@ class LiveMapViewController: UIViewController, MKMapViewDelegate {
         } else {
             annotationView?.annotation = annotation
         }
-        annotationView?.image = MapRenderingHelpers.cachedBlueCircleImage
+        annotationView?.image = MapRenderingHelpers.cachedGlowingBlueDotImage
+        annotationView?.centerOffset = CGPoint(x: 0, y: 0)
         return annotationView
     }
     

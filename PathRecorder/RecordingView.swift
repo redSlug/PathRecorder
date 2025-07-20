@@ -15,34 +15,52 @@ struct RecordingView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
-                Text(locationManager.editingPathId != nil ? "Editing Path..." : "Recording in progress...")
-                    .font(.title2)
-                    .foregroundColor(locationManager.editingPathId != nil ? .blue : .red)
-                
+                if locationManager.isPaused {
+                    Text(locationManager.editingPathName != nil ? "PAUSED EDIT" : "PAUSED")
+                        .foregroundColor(.orange)
+                        .fontWeight(.bold)
+                } else {
+                    if(locationManager.editingPathName != nil) {
+                        Text("EDITING")
+                            .foregroundColor(.purple)
+                            .fontWeight(.bold)
+                    } else {
+                        Text("RECORDING")
+                            .foregroundColor(.red)
+                            .fontWeight(.bold)
+                    }
+                }
                 VStack(alignment: .leading, spacing: 10) {
                     if let location = locationManager.currentLocation {
                         Text("GPS: \(String(format: "%.6f", location.coordinate.latitude)), \(String(format: "%.6f", location.coordinate.longitude))")
                     }
-                    Text("Distance: \(String(format: "%.2f", locationManager.totalDistance / 1000)) km")
-                    if locationManager.elapsedTime > 0 {
-                        Text("Time: \(formatTime(locationManager.elapsedTime))")
-                    }
-                    if locationManager.isPaused {
-                        Text("PAUSED")
-                            .foregroundColor(.orange)
-                            .fontWeight(.bold)
+                    HStack(spacing: 20) {
+                        HStack(spacing: 10) {
+                            Image(systemName: "figure.walk")
+                                .foregroundColor(.green)
+                                .font(.subheadline)
+                            Text("\(String(format: "%.2f", locationManager.totalDistance / 1000)) km")
+                        }
+                        if locationManager.elapsedTime > 0 {
+                            HStack(spacing: 10) {
+                                Image(systemName: "timer")
+                                    .foregroundColor(.orange)
+                                    .font(.subheadline)
+                                Text(formatTime(locationManager.elapsedTime))
+                            }
+                        }
                     }
                 }
                 .padding()
-                .background(Color.gray.opacity(0.1))
+                .frame(maxWidth: .infinity, alignment: .center)
+                .background(Color.blue.opacity(0.25))
                 .cornerRadius(10)
-                
-                // Live map showing current path
+                .padding(.horizontal)
+
                 LivePathMapView(locationManager: locationManager)
-                    .frame(height: 300)
                     .cornerRadius(12)
                     .padding(.horizontal)
-                
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 HStack(spacing: 20) {
                     Button(action: {
                         onStop()
@@ -81,9 +99,8 @@ struct RecordingView: View {
                     }
                 }
                 .padding(.horizontal)
-                Spacer()
             }
-            .padding()
+            .padding(.vertical)
             .navigationBarTitleDisplayMode(.inline)
         }
     }

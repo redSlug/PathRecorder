@@ -16,7 +16,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var currentLocation: CLLocation?
     @Published var currentActivity: Activity<PathRecorderAttributes>?
     @Published var editingPathId: UUID? = nil
-    private var editingPathName: String? = nil
+    @Published var editingPathName: String? = nil
     @Published var pathNeedingRename: RecordedPath? = nil // Track path needing rename
     
     // Properties for improved distance calculation
@@ -44,6 +44,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         let startTime: Date?
         let isPaused: Bool
         let editingPathId: UUID?
+        let editingPathName: String?
     }
 
     // MARK: - Persistence Methods
@@ -54,7 +55,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             elapsedTime: self.elapsedTime,
             startTime: self.startTime,
             isPaused: self.isPaused,
-            editingPathId: self.editingPathId
+            editingPathId: self.editingPathId,
+            editingPathName: self.editingPathName
         )
         if let data = try? JSONEncoder().encode(state) {
             UserDefaults.standard.set(data, forKey: recordingStateKey)
@@ -73,6 +75,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         self.isRecording = true
         self.currentSegmentId = UUID()
         self.editingPathId = state.editingPathId // Restore editingPathId
+        self.editingPathName = state.editingPathName // Restore editingPathName
         print("Restored in-progress recording from disk")
         locationManager.startUpdatingLocation()
         self.startLiveActivity()
@@ -133,6 +136,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             self.endLiveActivity()
             self.saveCurrentPath(to: pathStorage)
             self.editingPathId = nil
+            self.editingPathName = nil
             
             UserDefaults.standard.removeObject(forKey: self.recordingStateKey) // Clear saved state
         }

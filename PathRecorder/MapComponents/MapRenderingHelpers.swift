@@ -13,13 +13,21 @@ struct MapRenderingHelpers {
         }
         return MKOverlayRenderer(overlay: overlay)
     }
-    static var cachedBlueCircleImage: UIImage? = {
-        let size: CGFloat = 8
-        let circleView = UIView(frame: CGRect(x: 0, y: 0, width: size, height: size))
-        circleView.backgroundColor = UIColor.blue
-        circleView.layer.cornerRadius = size / 2
-        UIGraphicsBeginImageContextWithOptions(circleView.bounds.size, false, 0)
-        circleView.layer.render(in: UIGraphicsGetCurrentContext()!)
+    static var cachedGlowingBlueDotImage: UIImage? = {
+        let size: CGFloat = 32
+        let dotRadius: CGFloat = 8
+        UIGraphicsBeginImageContextWithOptions(CGSize(width: size, height: size), false, 0)
+        guard let ctx = UIGraphicsGetCurrentContext() else { return nil }
+        // Draw glow
+        let glowColor = UIColor.blue.withAlphaComponent(0.3).cgColor
+        ctx.setFillColor(glowColor)
+        ctx.addEllipse(in: CGRect(x: (size-dotRadius*3)/2, y: (size-dotRadius*3)/2, width: dotRadius*3, height: dotRadius*3))
+        ctx.fillPath()
+        // Draw solid blue dot
+        let dotColor = UIColor.blue.cgColor
+        ctx.setFillColor(dotColor)
+        ctx.addEllipse(in: CGRect(x: (size-dotRadius)/2, y: (size-dotRadius)/2, width: dotRadius, height: dotRadius))
+        ctx.fillPath()
         let image = UIGraphicsGetImageFromCurrentImageContext()
         UIGraphicsEndImageContext()
         return image
