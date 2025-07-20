@@ -106,12 +106,30 @@ struct RecordedPathRow: View {
             VStack(alignment: .leading, spacing: 5) {
                 Text(path.name)
                     .font(.headline)
-                Text("Distance: \(String(format: "%.2f", path.totalDistance / 1000)) km")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                Text("Duration: \(formatTime(path.totalDuration))")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+                HStack(spacing: 6) {
+                    Image(systemName: "calendar")
+                        .foregroundColor(.red)
+                        .font(.subheadline)
+                    Text(DateFormatter.localizedString(from: path.startTime, dateStyle: .medium, timeStyle: .short))
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                HStack(spacing: 12) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "figure.walk")
+                            .foregroundColor(.green)
+                            .font(.subheadline)
+                        Text("\(String(format: "%.2f", path.totalDistance / 1000)) km")
+                    }
+                    HStack(spacing: 6) {
+                        Image(systemName: "timer")
+                            .foregroundColor(.orange)
+                            .font(.subheadline)
+                        Text(formatTime(path.totalDuration))
+                    }
+                }
+                .font(.subheadline)
+                .foregroundColor(.secondary)
             }
             .padding(.vertical, 5)
         }
