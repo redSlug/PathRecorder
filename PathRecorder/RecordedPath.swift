@@ -1,3 +1,4 @@
+import UIKit
 import Foundation
 import CoreLocation
 
@@ -7,14 +8,16 @@ struct RecordedPath: Identifiable, Codable, Hashable {
     let totalDuration: TimeInterval // Total time in seconds
     let totalDistance: Double
     let locations: [GPSLocation]
+    var photos: [PathPhoto]
     var name: String
     
-    init(startTime: Date, totalDuration: TimeInterval, totalDistance: Double, locations: [GPSLocation], name: String? = nil) {
+    init(startTime: Date, totalDuration: TimeInterval, totalDistance: Double, locations: [GPSLocation], photos: [PathPhoto] = [], name: String? = nil) {
         self.id = UUID()
         self.startTime = startTime
         self.totalDuration = totalDuration
         self.totalDistance = totalDistance
         self.locations = locations
+        self.photos = photos
         if let name = name {
             self.name = name
         } else {

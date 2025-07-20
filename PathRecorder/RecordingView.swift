@@ -57,7 +57,7 @@ struct RecordingView: View {
                 .cornerRadius(10)
                 .padding(.horizontal)
 
-                LivePathMapView(locationManager: locationManager)
+                LivePathMapView(locationManager: locationManager, pathStorage: pathStorage)
                     .cornerRadius(12)
                     .padding(.horizontal)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -1,14 +1,20 @@
 import SwiftUI
 import MapKit
+import Foundation
+import AVFoundation
 
 struct LivePathMapView: View {
     @ObservedObject var locationManager: LocationManager
+    @ObservedObject var pathStorage: PathStorage
     @State private var region: MKCoordinateRegion?
     @State private var isAutoCentering: Bool = true
     @State private var lastCenterLocation: CLLocationCoordinate2D?
-    
-    init(locationManager: LocationManager) {
+    @State private var showCamera = false
+    @State private var capturedImage: UIImage?
+
+    init(locationManager: LocationManager, pathStorage: PathStorage) {
         self.locationManager = locationManager
+        self.pathStorage = pathStorage
         updateRegion()
     }
     
@@ -70,11 +76,12 @@ struct LivePathMapView: View {
                 .background(Color.white.opacity(0.7))
             }
 
-            // Only show button when auto-centering is disabled
-            if !isAutoCentering {
-                VStack {
-                    HStack {
-                        Spacer()
+            // Camera and centering buttons side by side (top right)
+            VStack {
+                HStack {
+                    Spacer()
+                    // Centering button (only when auto-centering is disabled)
+                    if !isAutoCentering {
                         Button(action: {
                             isAutoCentering = true
                             updateRegion()
@@ -85,13 +92,59 @@ struct LivePathMapView: View {
                                 .clipShape(Circle())
                                 .shadow(radius: 2)
                         }
-                        .padding()
+                        .padding(.trailing, 8)
                         .opacity(region != nil ? 1 : 0.5)
                         .disabled(region == nil)
                     }
-                    Spacer()
+                    // Camera button
+                    Button(action: {
+                        // Check camera authorization before showing camera
+                        switch AVCaptureDevice.authorizationStatus(for: .video) {
+                        case .authorized:
+                            showCamera = true
+                        case .notDetermined:
+                            AVCaptureDevice.requestAccess(for: .video) { granted in
+                                DispatchQueue.main.async {
+                                    if granted {
+                                        showCamera = true
+                                    }
+                                }
+                            }
+                        case .denied, .restricted:
+                            // Optionally show an alert to guide user to Settings
+                            break
+                        @unknown default:
+                            break
+                        }
+                    }) {
+                        Image(systemName: "camera.fill")
+                            .padding()
+                            .background(Color.white.opacity(0.8))
+                            .clipShape(Circle())
+                            .shadow(radius: 2)
+                    }
+                    .opacity(region != nil ? 1 : 0.5)
+                    .disabled(region == nil)
                 }
+                .padding()
+                Spacer()
             }
+        }
+        .fullScreenCover(isPresented: $showCamera) {
+            CameraView(isPresented: $showCamera, onImageCaptured: { image in
+                capturedImage = image
+                // Save photo to current path
+                if let image = image, let location = locationManager.currentLocation {
+                    let filename = "photo_\(UUID().uuidString).jpg"
+                    let photo = PathPhoto(
+                        coordinate: location.coordinate,
+                        timestamp: Date(),
+                        image: image,
+                        imageFilename: filename
+                    )
+                    locationManager.addPhoto(photo)
+                }
+            })
         }
     }
 }

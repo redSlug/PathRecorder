@@ -5,11 +5,14 @@
 //  Created by Brad Dettmer on 6/1/25.
 //
 
+
 import SwiftUI
 import SwiftData
+import UIKit
 
 @main
 struct PathRecorderApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate: AppDelegate
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Item.self,

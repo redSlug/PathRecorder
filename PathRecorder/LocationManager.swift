@@ -6,6 +6,11 @@ import ActivityKit
 import struct Shared.PathRecorderAttributes
 
 class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
+    @Published var capturedPhotos: [PathPhoto] = []
+    func addPhoto(_ photo: PathPhoto) {
+        capturedPhotos.append(photo)
+        saveRecordingState() // Persist photos immediately after adding
+    }
     private let locationManager = CLLocationManager()
     @Published var locations: [GPSLocation] = []
     @Published var isRecording = false
@@ -45,6 +50,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         let isPaused: Bool
         let editingPathId: UUID?
         let editingPathName: String?
+        let photos: [PathPhoto]
     }
 
     // MARK: - Persistence Methods
@@ -56,7 +62,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             startTime: self.startTime,
             isPaused: self.isPaused,
             editingPathId: self.editingPathId,
-            editingPathName: self.editingPathName
+            editingPathName: self.editingPathName,
+            photos: self.capturedPhotos
         )
         if let data = try? JSONEncoder().encode(state) {
             UserDefaults.standard.set(data, forKey: recordingStateKey)
@@ -76,6 +83,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         self.currentSegmentId = UUID()
         self.editingPathId = state.editingPathId // Restore editingPathId
         self.editingPathName = state.editingPathName // Restore editingPathName
+        self.capturedPhotos = state.photos
         print("Restored in-progress recording from disk")
         locationManager.startUpdatingLocation()
         self.startLiveActivity()
@@ -427,7 +435,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         self.isRecording = true
         self.isPaused = true // Start in paused state as requested
         self.editingPathId = path.id
-
+        self.capturedPhotos = path.photos
         // Set up for continuing the path
         self.currentSegmentId = UUID() // New segment for continuation
         
@@ -456,9 +464,11 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             totalDuration: elapsedTime,
             totalDistance: totalDistance,
             locations: locations,
+            photos: capturedPhotos,
             name: editingPathName
         )
         pathStorage.savePath(recordedPath)
+        capturedPhotos.removeAll()
 
         // If name is nil, trigger UI to show rename sheet for this path
         if editingPathName == nil {

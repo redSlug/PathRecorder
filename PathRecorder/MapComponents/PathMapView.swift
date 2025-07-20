@@ -51,11 +51,31 @@ struct PathMapView: View {
         self.showRenameSheetOnAppear = showRenameSheetOnAppear
     }
 
+    // Holds all photos at a tapped coordinate
+    @State private var selectedPhotos: [PathPhoto]? = nil
+    @State private var selectedPhotoIndex: Int = 0
+
     var body: some View {
         MapWithPolylines(
             region: region,
             locations: recordedPath.locations,
-            pathSegments: pathSegments
+            pathSegments: pathSegments,
+            photos: recordedPath.photos,
+            onPhotoTapped: { tappedPhoto in
+                // Find all photos within 10 meters of the tapped coordinate
+                let tappedLocation = CLLocation(latitude: tappedPhoto.coordinate.latitude, longitude: tappedPhoto.coordinate.longitude)
+                let nearbyPhotos = recordedPath.photos.filter {
+                    let photoLocation = CLLocation(latitude: $0.coordinate.latitude, longitude: $0.coordinate.longitude)
+                    return tappedLocation.distance(from: photoLocation) <= 10.0 // meters
+                }
+                selectedPhotos = nearbyPhotos
+                // Show the tapped photo first if multiple
+                if let idx = nearbyPhotos.firstIndex(where: { $0.id == tappedPhoto.id }) {
+                    selectedPhotoIndex = idx
+                } else {
+                    selectedPhotoIndex = 0
+                }
+            }
         )
         .navigationTitle(pathStorage.path(for: recordedPath.id)?.name ?? editedName)
         .navigationBarTitleDisplayMode(.inline)
@@ -134,6 +154,17 @@ struct PathMapView: View {
                 if let latest = pathStorage.path(for: recordedPath.id) {
                     editedName = latest.name
                 }
+            }
+        }
+        .sheet(isPresented: Binding(
+            get: { selectedPhotos != nil },
+            set: { if !$0 { selectedPhotos = nil } }
+        )) {
+            if let photos = selectedPhotos {
+                PhotoPagerView(photos: photos, selectedIndex: $selectedPhotoIndex)
+            } else {
+                Text("No photos at this location.")
+                    .padding()
             }
         }
     }
