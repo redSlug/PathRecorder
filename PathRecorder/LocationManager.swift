@@ -336,16 +336,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 isPaused: isPausedState
             )
             
-            do {
-                let content = ActivityContent(state: updatedState, staleDate: nil)
-                await activity.update(content)
-                print("Live Activity updated successfully")
-            } catch {
-                print("Error updating Live Activity: \(error.localizedDescription)")
-                if let error = error as NSError? {
-                    print("Update error domain: \(error.domain), code: \(error.code)")
-                }
-            }
+            let content = ActivityContent(state: updatedState, staleDate: nil)
+            await activity.update(content)
+            print("Live Activity updated successfully")
         }
     }
     
@@ -376,16 +369,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 isPaused: false
             )
             
-            do {
-                let finalContent = ActivityContent(state: finalState, staleDate: nil)
-                await activity.end(finalContent, dismissalPolicy: .immediate)
-                print("Live Activity ended successfully")
-            } catch {
-                print("Error ending Live Activity: \(error.localizedDescription)")
-                if let error = error as NSError? {
-                    print("End error domain: \(error.domain), code: \(error.code)")
-                }
-            }
+            let finalContent = ActivityContent(state: finalState, staleDate: nil)
+            await activity.end(finalContent, dismissalPolicy: .immediate)
+            print("Live Activity ended successfully")
             
             // Update this property on the main thread
             await MainActor.run {

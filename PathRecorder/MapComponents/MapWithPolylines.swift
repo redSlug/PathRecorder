@@ -2,9 +2,6 @@ import SwiftUI
 import MapKit
 import Foundation
 
-// Import PathPhoto from the main module
-import PathRecorder
-
 class PhotoAnnotation: NSObject, MKAnnotation {
     let photos: [PathPhoto]
     var coordinate: CLLocationCoordinate2D

@@ -4,7 +4,7 @@ struct PhotoPagerView: View {
     let photos: [PathPhoto] // Replace with your actual model type
     @Binding var selectedIndex: Int
     @State private var showShareSheet = false
-    @State private var imageToShare: UIImage?
+    @State private var imageToShare: ShareImage?
     @State private var showDeleteAlert = false
     let onDeletePhoto: (PathPhoto) -> Void
 
@@ -33,8 +33,8 @@ struct PhotoPagerView: View {
                                             .padding()
                                         Button(action: {
                                             print("[PhotoPagerView] Sharing image: size=\(image.size), orientation=\(image.imageOrientation.rawValue), isCGImage=\(image.cgImage != nil), isCIImage=\(image.ciImage != nil)")
-                                            imageToShare = image
-                                            showShareSheet = true
+                                        imageToShare = ShareImage(image: image)
+                                        showShareSheet = true
                                         }) {
                                             Label("Share Photo", systemImage: "square.and.arrow.up")
                                                 .font(.headline)
@@ -80,8 +80,8 @@ struct PhotoPagerView: View {
         } message: {
             Text("Are you sure you want to delete this photo? This action cannot be undone.")
         }
-        .sheet(item: $imageToShare) { image in
-            ShareSheet(activityItems: [image])
+        .sheet(item: $imageToShare) { shareImage in
+            ShareSheet(activityItems: [shareImage.image])
         }
     }
 
@@ -98,8 +98,9 @@ struct PhotoPagerView: View {
     }
 }
 
-// Make UIImage identifiable for .sheet(item:)
-extension UIImage: Identifiable {
-    public var id: UUID { UUID() }
+// Wrapper for sharing images in .sheet(item:)
+struct ShareImage: Identifiable {
+    let id = UUID()
+    let image: UIImage
 }
 
