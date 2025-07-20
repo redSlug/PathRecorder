@@ -22,6 +22,12 @@ class LiveMapViewController: UIViewController, MKMapViewDelegate {
         mapView.frame = view.bounds
         mapView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         view.addSubview(mapView)
+        // Fallback to a default region if location is not available
+        let defaultRegion = MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194), // San Francisco
+            span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+        )
+        mapView.setRegion(defaultRegion, animated: false)
         mapView.isUserInteractionEnabled = true // Always allow user interaction
     }
 
