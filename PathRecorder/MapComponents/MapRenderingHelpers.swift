@@ -2,11 +2,12 @@ import UIKit
 import MapKit
 
 struct MapRenderingHelpers {
+    static let polylineWidth: CGFloat = 5.0
     static func polylineRenderer(for overlay: MKOverlay) -> MKOverlayRenderer {
         if let polyline = overlay as? MKPolyline {
             let renderer = MKPolylineRenderer(polyline: polyline)
             renderer.strokeColor = UIColor.blue
-            renderer.lineWidth = 5.0
+            renderer.lineWidth = polylineWidth
             renderer.lineCap = .round
             renderer.lineJoin = .round
             return renderer
@@ -23,6 +24,20 @@ struct MapRenderingHelpers {
         ctx.setFillColor(glowColor)
         ctx.addEllipse(in: CGRect(x: (size-dotRadius*3)/2, y: (size-dotRadius*3)/2, width: dotRadius*3, height: dotRadius*3))
         ctx.fillPath()
+        // Draw solid blue dot
+        let dotColor = UIColor.blue.cgColor
+        ctx.setFillColor(dotColor)
+        ctx.addEllipse(in: CGRect(x: (size-dotRadius)/2, y: (size-dotRadius)/2, width: dotRadius, height: dotRadius))
+        ctx.fillPath()
+        let image = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        return image
+    }()
+    static var cachedBlueDotImage: UIImage? = {
+        let size: CGFloat = 32
+        let dotRadius: CGFloat = polylineWidth
+        UIGraphicsBeginImageContextWithOptions(CGSize(width: size, height: size), false, 0)
+        guard let ctx = UIGraphicsGetCurrentContext() else { return nil }
         // Draw solid blue dot
         let dotColor = UIColor.blue.cgColor
         ctx.setFillColor(dotColor)

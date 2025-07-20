@@ -16,11 +16,20 @@ struct MapWithPolylines: UIViewRepresentable {
     func updateUIView(_ mapView: MKMapView, context: Context) {
         // Clear existing overlays and annotations
         mapView.removeOverlays(mapView.overlays)
-        // Add updated polylines for each segment
+        mapView.removeAnnotations(mapView.annotations)
+        // Add updated polylines and start/end dot annotations for each segment
         for segment in pathSegments {
             if segment.coordinates.count >= 2 {
                 mapView.addOverlay(segment.polyline)
             }
+            // Add annotation for start point
+            let startAnnotation = MKPointAnnotation()
+            startAnnotation.coordinate = segment.coordinates.first!
+            mapView.addAnnotation(startAnnotation)
+            // Add annotation for end point
+            let endAnnotation = MKPointAnnotation()
+            endAnnotation.coordinate = segment.coordinates.last!
+            mapView.addAnnotation(endAnnotation)
         }
     }
     
@@ -35,6 +44,18 @@ struct MapWithPolylines: UIViewRepresentable {
         }
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             return MapRenderingHelpers.polylineRenderer(for: overlay)
+        }
+        func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+            let identifier = "GPSPoint"
+            var annotationView = mapView.dequeueReusableAnnotationView(withIdentifier: identifier)
+            if annotationView == nil {
+                annotationView = MKAnnotationView(annotation: annotation, reuseIdentifier: identifier)
+            } else {
+                annotationView?.annotation = annotation
+            }
+            annotationView?.image = MapRenderingHelpers.cachedBlueDotImage
+            annotationView?.centerOffset = CGPoint(x: 0, y: 0)
+            return annotationView
         }
     }
 } 
