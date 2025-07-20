@@ -16,6 +16,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var currentLocation: CLLocation?
     @Published var currentActivity: Activity<PathRecorderAttributes>?
     @Published var editingPathId: UUID? = nil
+    private var editingPathName: String? = nil
     
     // Properties for improved distance calculation
     private var lastProcessedTime: Date?
@@ -415,7 +416,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         self.totalDistance = path.totalDistance
         self.elapsedTime = path.totalDuration
         self.startTime = path.startTime
-        
+        self.editingPathName = path.name
+
         // Set up recording state for editing
         self.isRecording = true
         self.isPaused = true // Start in paused state as requested
@@ -448,7 +450,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             startTime: startTime,
             totalDuration: elapsedTime,
             totalDistance: totalDistance,
-            locations: locations
+            locations: locations,
+            name: editingPathName
         )
         pathStorage.savePath(recordedPath)
         

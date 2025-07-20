@@ -7,19 +7,27 @@ struct RecordedPath: Identifiable, Codable {
     let totalDuration: TimeInterval // Total time in seconds
     let totalDistance: Double
     let locations: [GPSLocation]
-    let name: String
+    var name: String
     
-    init(startTime: Date, totalDuration: TimeInterval, totalDistance: Double, locations: [GPSLocation]) {
+    init(startTime: Date, totalDuration: TimeInterval, totalDistance: Double, locations: [GPSLocation], name: String? = nil) {
         self.id = UUID()
         self.startTime = startTime
         self.totalDuration = totalDuration
         self.totalDistance = totalDistance
         self.locations = locations
-        self.name = "Path \(DateFormatter.localizedString(from: startTime, dateStyle: .short, timeStyle: .short))"
+        if let name = name {
+            self.name = name
+        } else {
+            self.name = "Path \(DateFormatter.localizedString(from: startTime, dateStyle: .short, timeStyle: .short))"
+        }
     }
 
     static func == (lhs: RecordedPath, rhs: RecordedPath) -> Bool {
         return lhs.id == rhs.id
+    }
+
+    mutating func editName(_ newName: String) {
+        self.name = newName
     }
 }
 
@@ -61,6 +69,13 @@ class PathStorage: ObservableObject {
         saveToUserDefaults()
     }
     
+    func updatePath(_ path: RecordedPath) {
+        if let index = recordedPaths.firstIndex(where: { $0.id == path.id }) {
+            recordedPaths[index] = path
+            saveToUserDefaults()
+        }
+    }
+
     private func saveToUserDefaults() {
         if let encoded = try? JSONEncoder().encode(recordedPaths) {
             userDefaults.set(encoded, forKey: key)

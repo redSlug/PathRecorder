@@ -48,7 +48,8 @@ struct ContentView: View {
                                         pathStorage.deletePath(id: path.id)
                                     },
                                     formatTime: formatTime,
-                                    locationManager: locationManager
+                                    locationManager: locationManager,
+                                    pathStorage: pathStorage
                                 )
                             }
                         }
@@ -98,9 +99,10 @@ struct RecordedPathRow: View {
     let onDelete: () -> Void
     let formatTime: (TimeInterval) -> String
     let locationManager: LocationManager
+    let pathStorage: PathStorage
 
     var body: some View {
-        NavigationLink(destination: PathMapView(recordedPath: path, locationManager: locationManager)) {
+        NavigationLink(destination: PathMapView(recordedPath: path, locationManager: locationManager, pathStorage: pathStorage)) {
             VStack(alignment: .leading, spacing: 5) {
                 Text(path.name)
                     .font(.headline)
