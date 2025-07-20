@@ -27,7 +27,7 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity, maxHeight: pathStorage.recordedPaths.isEmpty ? .infinity : 0, alignment: .center)
                     .opacity(pathStorage.recordedPaths.isEmpty ? 1 : 0)
                 List {
-                    ForEach(pathStorage.recordedPaths.reversed()) { path in
+                    ForEach(pathStorage.recordedPaths.sorted(by: { $0.startTime > $1.startTime })) { path in
                         RecordedPathRow(
                             path: path,
                             onEdit: {
