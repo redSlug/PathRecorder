@@ -3,6 +3,8 @@ import MapKit
 
 /// Displays a map with polylines and GPS point annotations for a recorded path.
 struct PathMapView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var sheetDetent: PresentationDetent = .fraction(0.25)
     @ObservedObject var locationManager: LocationManager
     @ObservedObject var pathStorage: PathStorage
     @State private var region: MKCoordinateRegion
@@ -106,10 +108,27 @@ struct PathMapView: View {
                 }
                 .padding(.horizontal)
                 .disabled(editedName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                if sheetDetent == .medium {
+                    Button(role: .destructive, action: {
+                        pathStorage.deletePath(id: recordedPath.id)
+                        isEditingName = false
+                        dismiss()
+                    }) {
+                        Text("Delete Path")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.red)
+                            .foregroundColor(.white)
+                            .cornerRadius(10)
+                            .shadow(color: Color.red.opacity(0.2), radius: 2, x: 0, y: 2)
+                    }
+                    .padding(.horizontal)
+                }
                 Spacer()
             }
             .padding(.bottom, 12)
-            .presentationDetents([.fraction(0.25)])
+            .presentationDetents([.fraction(0.25), .medium], selection: $sheetDetent)
             .onDisappear {
                 // Reset editedName to match storage if not saved
                 if let latest = pathStorage.path(for: recordedPath.id) {
