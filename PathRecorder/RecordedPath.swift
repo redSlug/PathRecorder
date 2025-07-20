@@ -1,7 +1,7 @@
 import Foundation
 import CoreLocation
 
-struct RecordedPath: Identifiable, Codable {
+struct RecordedPath: Identifiable, Codable, Hashable {
     let id: UUID
     let startTime: Date // Keep start time for naming and reference
     let totalDuration: TimeInterval // Total time in seconds
@@ -24,6 +24,10 @@ struct RecordedPath: Identifiable, Codable {
 
     static func == (lhs: RecordedPath, rhs: RecordedPath) -> Bool {
         return lhs.id == rhs.id
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
     }
 
     mutating func editName(_ newName: String) {
@@ -51,6 +55,9 @@ struct GPSLocation: Identifiable, Codable, Equatable {
 }
 
 class PathStorage: ObservableObject {
+    func path(for id: UUID) -> RecordedPath? {
+        recordedPaths.first(where: { $0.id == id })
+    }
     @Published var recordedPaths: [RecordedPath] = []
     private let userDefaults = UserDefaults.standard
     private let key = "RecordedPaths"

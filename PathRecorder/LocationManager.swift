@@ -17,6 +17,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var currentActivity: Activity<PathRecorderAttributes>?
     @Published var editingPathId: UUID? = nil
     private var editingPathName: String? = nil
+    @Published var pathNeedingRename: RecordedPath? = nil // Track path needing rename
     
     // Properties for improved distance calculation
     private var lastProcessedTime: Date?
@@ -444,7 +445,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             // If editing, delete the old path immediately after loading for editing
             pathStorage.deletePath(id: editingPathId!)
         }
-        
+
         // Create new path
         let recordedPath = RecordedPath(
             startTime: startTime,
@@ -454,7 +455,13 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             name: editingPathName
         )
         pathStorage.savePath(recordedPath)
-        
+
+        // If name is nil, trigger UI to show rename sheet for this path
+        if editingPathName == nil {
+            DispatchQueue.main.async {
+                self.pathNeedingRename = recordedPath
+            }
+        }
     }
     
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {

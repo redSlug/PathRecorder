@@ -13,9 +13,12 @@ struct ContentView: View {
     @StateObject private var locationManager = LocationManager()
     @StateObject private var pathStorage = PathStorage()
     @State private var showRecordingSheet = false
+    @State private var selectedPathForRename: RecordedPath? = nil
+    @State private var navigationPath = NavigationPath()
+    @State private var showRenameSheet = false
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             VStack(spacing: 20) {
                 Button(action: {
                     locationManager.startRecording()
@@ -30,7 +33,7 @@ struct ContentView: View {
                         .cornerRadius(10)
                 }
                 .padding(.horizontal)
-                
+
                 if !pathStorage.recordedPaths.isEmpty {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Recorded Paths")
@@ -48,8 +51,9 @@ struct ContentView: View {
                                         pathStorage.deletePath(id: path.id)
                                     },
                                     formatTime: formatTime,
-                                    locationManager: locationManager,
-                                    pathStorage: pathStorage
+                                    onSelect: {
+                                        navigationPath.append(path)
+                                    }
                                 )
                             }
                         }
@@ -64,6 +68,13 @@ struct ContentView: View {
                 // Automatically show recording view if in-progress recording exists
                 if locationManager.isRecording && locationManager.isPaused {
                     showRecordingSheet = true
+                }
+            }
+            .onReceive(locationManager.$pathNeedingRename) { path in
+                if let path = path {
+                    selectedPathForRename = path
+                    navigationPath.append(path)
+                    showRenameSheet = true
                 }
             }
             .fullScreenCover(isPresented: Binding(
@@ -82,6 +93,11 @@ struct ContentView: View {
                     }
                 )
             }
+            .navigationDestination(for: RecordedPath.self) { path in
+                let view = PathMapView(recordedPath: path, locationManager: locationManager, pathStorage: pathStorage, showRenameSheetOnAppear: showRenameSheet)
+                showRenameSheet = false
+                return view
+            }
         }
     }
 
@@ -98,11 +114,10 @@ struct RecordedPathRow: View {
     let onEdit: () -> Void
     let onDelete: () -> Void
     let formatTime: (TimeInterval) -> String
-    let locationManager: LocationManager
-    let pathStorage: PathStorage
+    let onSelect: () -> Void
 
     var body: some View {
-        NavigationLink(destination: PathMapView(recordedPath: path, locationManager: locationManager, pathStorage: pathStorage)) {
+        Button(action: onSelect) {
             VStack(alignment: .leading, spacing: 5) {
                 Text(path.name)
                     .font(.headline)

@@ -10,8 +10,9 @@ struct PathMapView: View {
     @State private var isEditingName = false
     @State private var editedName: String
     @State private var recordedPath: RecordedPath
+    var showRenameSheetOnAppear: Bool
 
-    init(recordedPath: RecordedPath, locationManager: LocationManager, pathStorage: PathStorage) {
+    init(recordedPath: RecordedPath, locationManager: LocationManager, pathStorage: PathStorage, showRenameSheetOnAppear: Bool = false) {
         self.locationManager = locationManager
         self.pathStorage = pathStorage
         _recordedPath = State(initialValue: recordedPath)
@@ -45,6 +46,7 @@ struct PathMapView: View {
         )
         _region = State(initialValue: initialRegion)
         _editedName = State(initialValue: recordedPath.name)
+        self.showRenameSheetOnAppear = showRenameSheetOnAppear
     }
 
     var body: some View {
@@ -53,7 +55,7 @@ struct PathMapView: View {
             locations: recordedPath.locations,
             pathSegments: pathSegments
         )
-        .navigationTitle(recordedPath.name)
+        .navigationTitle(pathStorage.path(for: recordedPath.id)?.name ?? editedName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -61,6 +63,13 @@ struct PathMapView: View {
                     isEditingName = true
                 }) {
                     Image(systemName: "pencil")
+                }
+            }
+        }
+        .onAppear {
+            if showRenameSheetOnAppear {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                    isEditingName = true
                 }
             }
         }
@@ -80,11 +89,13 @@ struct PathMapView: View {
                     )
                     .padding(.horizontal)
                 Button(action: {
-                    recordedPath.editName(editedName)
-                    pathStorage.updatePath(recordedPath)
+                    var updatedPath = recordedPath
+                    updatedPath.editName(editedName)
+                    recordedPath = updatedPath
+                    pathStorage.updatePath(updatedPath)
                     isEditingName = false
                 }) {
-                    Text("Change Name")
+                    Text("Set Name")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding()
@@ -99,6 +110,12 @@ struct PathMapView: View {
             }
             .padding(.bottom, 12)
             .presentationDetents([.fraction(0.25)])
+            .onDisappear {
+                // Reset editedName to match storage if not saved
+                if let latest = pathStorage.path(for: recordedPath.id) {
+                    editedName = latest.name
+                }
+            }
         }
     }
 }
