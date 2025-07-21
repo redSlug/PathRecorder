@@ -16,6 +16,7 @@ struct ContentView: View {
     @State private var selectedPathForRename: RecordedPath? = nil
     @State private var navigationPath = NavigationPath()
     @State private var showRenameSheet = false
+    @State private var showLocationAlert = false
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
@@ -42,13 +43,18 @@ struct ContentView: View {
                                 navigationPath.append(path)
                             }
                         )
+                        .environmentObject(locationManager)
                     }
                 }
                 .listStyle(.plain)
                 
                 Button(action: {
-                    locationManager.startRecording()
-                    showRecordingSheet = true
+                    if locationManager.authorizationStatus == .authorizedAlways || locationManager.authorizationStatus == .authorizedWhenInUse {
+                        locationManager.startRecording()
+                        showRecordingSheet = true
+                    } else {
+                        showLocationAlert = true
+                    }
                 }) {
                     Text("Start Recording")
                         .font(.headline)
@@ -59,6 +65,16 @@ struct ContentView: View {
                         .cornerRadius(10)
                 }
                 .padding(.horizontal)
+                .alert("Location Access Needed", isPresented: $showLocationAlert) {
+                    Button("Open Settings") {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
+                    }
+                    Button("Cancel", role: .cancel) { }
+                } message: {
+                    Text("To record your path, please allow location access in Settings.")
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding()
@@ -115,6 +131,8 @@ struct RecordedPathRow: View {
     let onDelete: () -> Void
     let formatTime: (TimeInterval) -> String
     let onSelect: () -> Void
+    @EnvironmentObject private var locationManager: LocationManager
+    @State private var showLocationAlert = false
 
     var body: some View {
         Button(action: onSelect) {
@@ -153,10 +171,26 @@ struct RecordedPathRow: View {
                 Label("Delete", systemImage: "trash")
             }
             .tint(.purple)
-            Button(action: onEdit) {
+            Button(action: {
+                if locationManager.authorizationStatus == .authorizedAlways || locationManager.authorizationStatus == .authorizedWhenInUse {
+                    onEdit()
+                } else {
+                    showLocationAlert = true
+                }
+            }) {
                 Label("Resume", systemImage: "pencil")
             }
             .tint(.blue)
+        }
+        .alert("Location Access Needed", isPresented: $showLocationAlert) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("To record your path, please allow location access in Settings.")
         }
     }
 }
@@ -164,4 +198,5 @@ struct RecordedPathRow: View {
 #Preview {
     ContentView()
         .modelContainer(for: Item.self, inMemory: true)
+        .environmentObject(LocationManager())
 }

@@ -10,5 +10,9 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>This app needs access to the camera to take photos along your path.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>This app needs access to save photos to your photo library.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs access to save photos to your photo library.</string>
 </dict>
 </plist>

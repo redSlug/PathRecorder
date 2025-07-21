@@ -494,4 +494,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     var lastRecordedLocation: CLLocation? {
         locations.last.map { CLLocation(latitude: $0.latitude, longitude: $0.longitude) }
     }
+    
+    var authorizationStatus: CLAuthorizationStatus {
+        return locationManager.authorizationStatus
+    }
 }

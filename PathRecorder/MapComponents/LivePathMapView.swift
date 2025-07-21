@@ -12,6 +12,7 @@ struct LivePathMapView: View {
     @State private var showCamera = false
     @State private var capturedImage: UIImage?
     @State private var hasCurrentGPS: Bool = false // Track if we have current GPS
+    @State private var showCameraPermissionAlert = false
 
     init(locationManager: LocationManager, pathStorage: PathStorage) {
         self.locationManager = locationManager
@@ -116,12 +117,13 @@ struct LivePathMapView: View {
                                 DispatchQueue.main.async {
                                     if granted {
                                         showCamera = true
+                                    } else {
+                                        showCameraPermissionAlert = true
                                     }
                                 }
                             }
                         case .denied, .restricted:
-                            // Optionally show an alert to guide user to Settings
-                            break
+                            showCameraPermissionAlert = true
                         @unknown default:
                             break
                         }
@@ -152,6 +154,16 @@ struct LivePathMapView: View {
                     locationManager.addPhoto(photo)
                 }
             })
+        }
+        .alert("Camera Access Needed", isPresented: $showCameraPermissionAlert) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("To take photos, please allow camera access in Settings.")
         }
     }
 }
