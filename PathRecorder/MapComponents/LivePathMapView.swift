@@ -107,33 +107,35 @@ struct LivePathMapView: View {
                         }
                         .padding(.trailing, 8)
                     }
-    // Camera button
-                    Button(action: {
-                        // Check camera authorization before showing camera
-                        switch AVCaptureDevice.authorizationStatus(for: .video) {
-                        case .authorized:
-                            showCamera = true
-                        case .notDetermined:
-                            AVCaptureDevice.requestAccess(for: .video) { granted in
-                                DispatchQueue.main.async {
-                                    if granted {
-                                        showCamera = true
-                                    } else {
-                                        showCameraPermissionAlert = true
+    // Camera button (only when not paused)
+                    if !locationManager.isPaused {
+                        Button(action: {
+                            // Check camera authorization before showing camera
+                            switch AVCaptureDevice.authorizationStatus(for: .video) {
+                            case .authorized:
+                                showCamera = true
+                            case .notDetermined:
+                                AVCaptureDevice.requestAccess(for: .video) { granted in
+                                    DispatchQueue.main.async {
+                                        if granted {
+                                            showCamera = true
+                                        } else {
+                                            showCameraPermissionAlert = true
+                                        }
                                     }
                                 }
+                            case .denied, .restricted:
+                                showCameraPermissionAlert = true
+                            @unknown default:
+                                break
                             }
-                        case .denied, .restricted:
-                            showCameraPermissionAlert = true
-                        @unknown default:
-                            break
+                        }) {
+                            Image(systemName: "camera.fill")
+                                .padding()
+                                .background(Color.white.opacity(0.8))
+                                .clipShape(Circle())
+                                .shadow(radius: 2)
                         }
-                    }) {
-                        Image(systemName: "camera.fill")
-                            .padding()
-                            .background(Color.white.opacity(0.8))
-                            .clipShape(Circle())
-                            .shadow(radius: 2)
                     }
                 }
                 .padding()
