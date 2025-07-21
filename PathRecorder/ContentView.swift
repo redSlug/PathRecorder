@@ -110,7 +110,15 @@ struct ContentView: View {
             }
             .navigationTitle("Recorded Paths")
             .navigationDestination(for: RecordedPath.self) { path in
-                let view = PathMapView(recordedPath: path, locationManager: locationManager, pathStorage: pathStorage, showRenameSheetOnAppear: showRenameSheet)
+                let view = PathMapView(
+                    recordedPath: path, 
+                    locationManager: locationManager, 
+                    pathStorage: pathStorage, 
+                    showRenameSheetOnAppear: showRenameSheet,
+                    onModifyPath: {
+                        showRecordingSheet = true
+                    }
+                )
                 showRenameSheet = false
                 return view
             }

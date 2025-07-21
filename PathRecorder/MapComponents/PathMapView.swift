@@ -13,8 +13,9 @@ struct PathMapView: View {
     @State private var editedName: String
     @State private var recordedPath: RecordedPath
     var showRenameSheetOnAppear: Bool
+    var onModifyPath: (() -> Void)?
 
-    init(recordedPath: RecordedPath, locationManager: LocationManager, pathStorage: PathStorage, showRenameSheetOnAppear: Bool = false) {
+    init(recordedPath: RecordedPath, locationManager: LocationManager, pathStorage: PathStorage, showRenameSheetOnAppear: Bool = false, onModifyPath: (() -> Void)? = nil) {
         self.locationManager = locationManager
         self.pathStorage = pathStorage
         _recordedPath = State(initialValue: recordedPath)
@@ -49,6 +50,7 @@ struct PathMapView: View {
         _region = State(initialValue: initialRegion)
         _editedName = State(initialValue: recordedPath.name)
         self.showRenameSheetOnAppear = showRenameSheetOnAppear
+        self.onModifyPath = onModifyPath
     }
 
     // Holds all photos at a tapped coordinate
@@ -135,6 +137,23 @@ struct PathMapView: View {
                 .padding(.horizontal)
                 .disabled(editedName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 if sheetDetent == .medium {
+
+                    Button(action: {
+                        locationManager.loadPathForEditing(recordedPath, pathStorage: pathStorage)
+                        isEditingName = false
+                        dismiss()
+                        onModifyPath?()
+                    }) {
+                        Text("Modify Path")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.orange)
+                            .foregroundColor(.white)
+                            .cornerRadius(10)
+                            .shadow(color: Color.blue.opacity(0.2), radius: 2, x: 0, y: 2)
+                    }
+                    .padding(.horizontal)
                     Button(role: .destructive, action: {
                         pathStorage.deletePath(id: recordedPath.id)
                         isEditingName = false
