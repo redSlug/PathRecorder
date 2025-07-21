@@ -174,7 +174,7 @@ struct RecordedPathRow: View {
             }
             .padding(.vertical, 5)
         }
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(action: onDelete) {
                 Label("Delete", systemImage: "trash")
             }
