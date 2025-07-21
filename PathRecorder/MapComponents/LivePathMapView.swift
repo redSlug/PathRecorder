@@ -43,6 +43,7 @@ struct LivePathMapView: View {
                 region: $region,
                 locations: locationManager.locations,
                 isAutoCentering: isAutoCentering,
+                isPaused: locationManager.isPaused,
                 onMapTouched: {
                     isAutoCentering = false
                 }

@@ -84,8 +84,11 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         self.editingPathId = state.editingPathId // Restore editingPathId
         self.editingPathName = state.editingPathName // Restore editingPathName
         self.capturedPhotos = state.photos
+        // Clear current location to prevent showing stale location annotation
+        self.currentLocation = nil
         print("Restored in-progress recording from disk")
-        locationManager.startUpdatingLocation()
+        // Don't start location updates immediately - wait for user to resume
+        // locationManager.startUpdatingLocation()
         self.startLiveActivity()
     }
 
@@ -422,6 +425,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         self.isPaused = true // Start in paused state as requested
         self.editingPathId = path.id
         self.capturedPhotos = path.photos
+        // Clear current location to prevent showing stale location annotation
+        self.currentLocation = nil
         // Set up for continuing the path
         self.currentSegmentId = UUID() // New segment for continuation
         
@@ -431,7 +436,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         // Don't start the timer yet since we're starting in paused state
         // The timer will be created when resumeRecording() is called
         
-        self.resumeRecording()
+        // Don't automatically resume - let the user manually resume when ready
+        // self.resumeRecording()
         
         print("Loaded existing path for editing - Distance: \(totalDistance)m, Duration: \(elapsedTime)s")
     }
