@@ -122,31 +122,29 @@ struct PhotoPagerView: View {
             }
             Button("Cancel", role: .cancel) { }
         } message: {
-            Text("To save photos, please allow access to your photo library in Settings.")
+            Text("To save photos, please allow full access to your photo library in Settings.")
         }
     }
     
     private func saveImageToPhotos(_ image: UIImage) {
-        let status = PHPhotoLibrary.authorizationStatus()
+        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         switch status {
         case .authorized:
             UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
         case .notDetermined:
-            PHPhotoLibrary.requestAuthorization { newStatus in
+            PHPhotoLibrary.requestAuthorization(for: .readWrite) { newStatus in
                 DispatchQueue.main.async {
                     if newStatus == .authorized {
                         UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
-                    } else if newStatus == .denied || newStatus == .restricted {
+                    } else {
                         showPhotoLibraryAlert = true
                     }
                 }
             }
-        case .denied, .restricted:
+        case .denied, .restricted, .limited:
             showPhotoLibraryAlert = true
-        case .limited:
-            UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
         @unknown default:
-            break
+            showPhotoLibraryAlert = true
         }
     }
 
