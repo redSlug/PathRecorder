@@ -70,6 +70,19 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
     }
 
+    // Appends the current location as the final GPSLocation for the segment
+    private func markSegment() {
+        if let finalLocation = self.currentLocation {
+            let gpsLocation = GPSLocation(
+                latitude: finalLocation.coordinate.latitude,
+                longitude: finalLocation.coordinate.longitude,
+                timestamp: finalLocation.timestamp,
+                segmentId: self.currentSegmentId
+            )
+            self.locations.append(gpsLocation)
+        }
+    }
+
     private func loadRecordingStateIfNeeded() {
         guard let data = UserDefaults.standard.data(forKey: recordingStateKey),
               let state = try? JSONDecoder().decode(RecordingState.self, from: data),
@@ -128,8 +141,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         isRecording = true
         isPaused = false
         locationManager.startUpdatingLocation()
+        self.markSegment() // Ensure segment starts with a coordinate
         startLiveActivity()
-        
         // Start a timer to update elapsed time and Live Activity every second
         startActivityTimer()
     }
@@ -137,35 +150,30 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     func stopRecording(pathStorage: PathStorage) {        // Save the current path before stopping if pathStorage is provided
         // Ensure UI updates happen on main thread
         DispatchQueue.main.async {
+            self.markSegment()
             self.isRecording = false
             self.isPaused = false
             self.locationManager.stopUpdatingLocation()
-            
             // Stop and invalidate the timer
             self.stopActivityTimer()
-            
             self.endLiveActivity()
             self.saveCurrentPath(to: pathStorage)
             self.editingPathId = nil
             self.editingPathName = nil
-            
             UserDefaults.standard.removeObject(forKey: self.recordingStateKey) // Clear saved state
         }
     }
     
     func pauseRecording() {
         guard isRecording && !isPaused else { return }
-        
         DispatchQueue.main.async {
+            self.markSegment()
             self.isPaused = true
             self.locationManager.stopUpdatingLocation()
-            
             // Stop the timer when pausing
             self.stopActivityTimer()
-            
             // Update Live Activity to show paused state
             self.updateLiveActivity()
-            
             self.saveRecordingState() // Save when paused
         }
     }
@@ -175,20 +183,16 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         
         DispatchQueue.main.async {
             self.isPaused = false
-            
             // Reset only the smoothing data, keep the recorded path
             self.lastProcessedTime = nil
             self.lastProcessedLocation = nil
             self.recentLocations.removeAll()
-            
             // Start a new segment when resuming
             self.currentSegmentId = UUID()
-            
             self.locationManager.startUpdatingLocation()
-            
+            self.markSegment() // Ensure segment starts with a coordinate
             // Recreate the timer when resuming
             self.startActivityTimer()
-            
             // Update Live Activity to show resumed state
             self.updateLiveActivity()
         }

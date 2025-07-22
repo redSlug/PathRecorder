@@ -212,7 +212,7 @@ struct PathMapView: View {
                 }
             )
         }
-        .alert("No selected photos could be associated with this path.", isPresented: Binding(get: { !showEditingSheet && showAssociationAlert && associatedCount == 0 }, set: { show in showAssociationAlert = show })) {
+        .alert("Selected photos were not captured during path recording.", isPresented: Binding(get: { !showEditingSheet && showAssociationAlert && associatedCount == 0 }, set: { show in showAssociationAlert = show })) {
             Button("OK", role: .cancel) {
                 pendingPhotos.removeAll()
             }
