@@ -14,5 +14,7 @@
 	<string>This app needs access to your photo library to save and upload photos taken along your path.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This app needs access to your photo library to save and upload photos taken along your path.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>  
+	<false/>
 </dict>
 </plist>
