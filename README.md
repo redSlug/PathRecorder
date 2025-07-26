@@ -1,5 +1,9 @@
 # PathRecorder
 
+## ** Support for Path Recorder**
+
+Please raise an issue or start a discussion in this repository for support requests.
+
 ## **Privacy Policy for Path Recorder**
 
 **Effective Date:** July 25, 2025
