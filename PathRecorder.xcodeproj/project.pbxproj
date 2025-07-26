@@ -62,13 +62,6 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		6141C90C2DECB7D90034946C /* Exceptions for "PathRecorder" folder in "PathRecorder" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 6141C8D22DECACB90034946C /* PathRecorder */;
-		};
 		B93D3C392E07111700B158C8 /* Exceptions for "PathRecorderWidget" folder in "PathRecorderWidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -76,13 +69,20 @@
 			);
 			target = B93D3C1E2E07111600B158C8 /* PathRecorderWidgetExtension */;
 		};
+		B9AAE7DD2E34815900CD6869 /* Exceptions for "PathRecorder" folder in "PathRecorder" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 6141C8D22DECACB90034946C /* PathRecorder */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		6141C8D52DECACB90034946C /* PathRecorder */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				6141C90C2DECB7D90034946C /* Exceptions for "PathRecorder" folder in "PathRecorder" target */,
+				B9AAE7DD2E34815900CD6869 /* Exceptions for "PathRecorder" folder in "PathRecorder" target */,
 			);
 			path = PathRecorder;
 			sourceTree = "<group>";
@@ -556,7 +556,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -571,6 +571,7 @@
 				DEVELOPMENT_TEAM = Z9WN384MPT;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PathRecorder/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "";
 				INFOPLIST_KEY_NSCameraUsageDescription = "This app needs access to the camera to take photos along your path.";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "We need your location to track your path and calculate distance traveled, even when the app is in the background.";
@@ -592,7 +593,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
