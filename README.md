@@ -1,6 +1,6 @@
 # PathRecorder
 
-## ** Support for Path Recorder**
+## **Support for Path Recorder**
 
 Please raise an issue or start a discussion in this repository for support requests.
 
