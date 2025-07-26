@@ -11,6 +11,8 @@ struct LivePathMapView: View {
     @State private var lastCenterLocation: CLLocationCoordinate2D?
     @State private var showCamera = false
     @State private var capturedImage: UIImage?
+    @State private var hasCurrentGPS: Bool = false // Track if we have current GPS
+    @State private var showCameraPermissionAlert = false
 
     init(locationManager: LocationManager, pathStorage: PathStorage) {
         self.locationManager = locationManager
@@ -25,11 +27,13 @@ struct LivePathMapView: View {
                 center: currentLocation.coordinate,
                 span: MKCoordinateSpan(latitudeDelta: 0.002, longitudeDelta: 0.002)
             )
+            hasCurrentGPS = true
         } else if let lastLocation = locationManager.lastRecordedLocation {
             region = MKCoordinateRegion(
                 center: lastLocation.coordinate,
                 span: MKCoordinateSpan(latitudeDelta: 0.002, longitudeDelta: 0.002)
             )
+            hasCurrentGPS = true // This is old data, not current GPS
         }
     }
     
@@ -39,16 +43,23 @@ struct LivePathMapView: View {
                 region: $region,
                 locations: locationManager.locations,
                 isAutoCentering: isAutoCentering,
+                isPaused: locationManager.isPaused,
                 onMapTouched: {
                     isAutoCentering = false
                 }
             )
-            .onChange(of: locationManager.locations.count) { _ in
+            .onChange(of: locationManager.locations.count) { _, _ in
                 if isAutoCentering {
                     updateRegion()
                 }
             }
-            .onChange(of: locationManager.isPaused) { isPaused in
+            .onChange(of: locationManager.currentLocation) { _, _ in
+                // Update when current location changes
+                if isAutoCentering {
+                    updateRegion()
+                }
+            }
+            .onChange(of: locationManager.isPaused) { _, newValue in
                 isAutoCentering = true
                 updateRegion()
             }
@@ -61,8 +72,8 @@ struct LivePathMapView: View {
                 updateRegion()
             }
 
-            // Show GPS loading overlay if region is nil
-            if region == nil {
+            // Show GPS loading overlay if we don't have current GPS data
+            if !hasCurrentGPS {
                 VStack {
                     Spacer()
                     ProgressView()
@@ -73,14 +84,16 @@ struct LivePathMapView: View {
                         .padding(.top, 8)
                     Spacer()
                 }
-                .background(Color.white.opacity(0.7))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.black.opacity(1))
+                .zIndex(10) // Ensure overlay appears on top
             }
 
             // Camera and centering buttons side by side (top right)
             VStack {
                 HStack {
                     Spacer()
-                    // Centering button (only when auto-centering is disabled)
+    // Centering button (only when auto-centering is disabled)
                     if !isAutoCentering {
                         Button(action: {
                             isAutoCentering = true
@@ -93,38 +106,37 @@ struct LivePathMapView: View {
                                 .shadow(radius: 2)
                         }
                         .padding(.trailing, 8)
-                        .opacity(region != nil ? 1 : 0.5)
-                        .disabled(region == nil)
                     }
-                    // Camera button
-                    Button(action: {
-                        // Check camera authorization before showing camera
-                        switch AVCaptureDevice.authorizationStatus(for: .video) {
-                        case .authorized:
-                            showCamera = true
-                        case .notDetermined:
-                            AVCaptureDevice.requestAccess(for: .video) { granted in
-                                DispatchQueue.main.async {
-                                    if granted {
-                                        showCamera = true
+    // Camera button (only when not paused)
+                    if !locationManager.isPaused {
+                        Button(action: {
+                            // Check camera authorization before showing camera
+                            switch AVCaptureDevice.authorizationStatus(for: .video) {
+                            case .authorized:
+                                showCamera = true
+                            case .notDetermined:
+                                AVCaptureDevice.requestAccess(for: .video) { granted in
+                                    DispatchQueue.main.async {
+                                        if granted {
+                                            showCamera = true
+                                        } else {
+                                            showCameraPermissionAlert = true
+                                        }
                                     }
                                 }
+                            case .denied, .restricted:
+                                showCameraPermissionAlert = true
+                            @unknown default:
+                                break
                             }
-                        case .denied, .restricted:
-                            // Optionally show an alert to guide user to Settings
-                            break
-                        @unknown default:
-                            break
+                        }) {
+                            Image(systemName: "camera.fill")
+                                .padding()
+                                .background(Color.white.opacity(0.8))
+                                .clipShape(Circle())
+                                .shadow(radius: 2)
                         }
-                    }) {
-                        Image(systemName: "camera.fill")
-                            .padding()
-                            .background(Color.white.opacity(0.8))
-                            .clipShape(Circle())
-                            .shadow(radius: 2)
                     }
-                    .opacity(region != nil ? 1 : 0.5)
-                    .disabled(region == nil)
                 }
                 .padding()
                 Spacer()
@@ -145,6 +157,16 @@ struct LivePathMapView: View {
                     locationManager.addPhoto(photo)
                 }
             })
+        }
+        .alert("Camera Access Needed", isPresented: $showCameraPermissionAlert) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("To take photos, please allow camera access in Settings.")
         }
     }
 }

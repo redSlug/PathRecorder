@@ -6,9 +6,5 @@
 	<array>
 		<string>location</string>
 	</array>
-	<key>NSSupportsLiveActivities</key>
-	<true/>
-	<key>NSCameraUsageDescription</key>
-	<string>This app needs access to the camera to take photos along your path.</string>
 </dict>
 </plist>

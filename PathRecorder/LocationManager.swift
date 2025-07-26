@@ -70,6 +70,19 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
     }
 
+    // Appends the current location as the final GPSLocation for the segment
+    private func markSegment() {
+        if let finalLocation = self.currentLocation {
+            let gpsLocation = GPSLocation(
+                latitude: finalLocation.coordinate.latitude,
+                longitude: finalLocation.coordinate.longitude,
+                timestamp: finalLocation.timestamp,
+                segmentId: self.currentSegmentId
+            )
+            self.locations.append(gpsLocation)
+        }
+    }
+
     private func loadRecordingStateIfNeeded() {
         guard let data = UserDefaults.standard.data(forKey: recordingStateKey),
               let state = try? JSONDecoder().decode(RecordingState.self, from: data),
@@ -84,8 +97,11 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         self.editingPathId = state.editingPathId // Restore editingPathId
         self.editingPathName = state.editingPathName // Restore editingPathName
         self.capturedPhotos = state.photos
+        // Clear current location to prevent showing stale location annotation
+        self.currentLocation = nil
         print("Restored in-progress recording from disk")
-        locationManager.startUpdatingLocation()
+        // Don't start location updates immediately - wait for user to resume
+        // locationManager.startUpdatingLocation()
         self.startLiveActivity()
     }
 
@@ -93,9 +109,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         super.init()
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
-        locationManager.allowsBackgroundLocationUpdates = true
-        locationManager.pausesLocationUpdatesAutomatically = false
-        locationManager.showsBackgroundLocationIndicator = true
         // End any orphaned activities and restore the first available one
         Task {
             self.endLiveActivity()
@@ -125,8 +138,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         isRecording = true
         isPaused = false
         locationManager.startUpdatingLocation()
+        self.markSegment() // Ensure segment starts with a coordinate
         startLiveActivity()
-        
         // Start a timer to update elapsed time and Live Activity every second
         startActivityTimer()
     }
@@ -134,35 +147,30 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     func stopRecording(pathStorage: PathStorage) {        // Save the current path before stopping if pathStorage is provided
         // Ensure UI updates happen on main thread
         DispatchQueue.main.async {
+            self.markSegment()
             self.isRecording = false
             self.isPaused = false
             self.locationManager.stopUpdatingLocation()
-            
             // Stop and invalidate the timer
             self.stopActivityTimer()
-            
             self.endLiveActivity()
             self.saveCurrentPath(to: pathStorage)
             self.editingPathId = nil
             self.editingPathName = nil
-            
             UserDefaults.standard.removeObject(forKey: self.recordingStateKey) // Clear saved state
         }
     }
     
     func pauseRecording() {
         guard isRecording && !isPaused else { return }
-        
         DispatchQueue.main.async {
+            self.markSegment()
             self.isPaused = true
             self.locationManager.stopUpdatingLocation()
-            
             // Stop the timer when pausing
             self.stopActivityTimer()
-            
             // Update Live Activity to show paused state
             self.updateLiveActivity()
-            
             self.saveRecordingState() // Save when paused
         }
     }
@@ -172,20 +180,16 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         
         DispatchQueue.main.async {
             self.isPaused = false
-            
             // Reset only the smoothing data, keep the recorded path
             self.lastProcessedTime = nil
             self.lastProcessedLocation = nil
             self.recentLocations.removeAll()
-            
             // Start a new segment when resuming
             self.currentSegmentId = UUID()
-            
             self.locationManager.startUpdatingLocation()
-            
+            self.markSegment() // Ensure segment starts with a coordinate
             // Recreate the timer when resuming
             self.startActivityTimer()
-            
             // Update Live Activity to show resumed state
             self.updateLiveActivity()
         }
@@ -336,16 +340,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 isPaused: isPausedState
             )
             
-            do {
-                let content = ActivityContent(state: updatedState, staleDate: nil)
-                await activity.update(content)
-                print("Live Activity updated successfully")
-            } catch {
-                print("Error updating Live Activity: \(error.localizedDescription)")
-                if let error = error as NSError? {
-                    print("Update error domain: \(error.domain), code: \(error.code)")
-                }
-            }
+            let content = ActivityContent(state: updatedState, staleDate: nil)
+            await activity.update(content)
+            print("Live Activity updated successfully")
         }
     }
     
@@ -376,16 +373,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 isPaused: false
             )
             
-            do {
-                let finalContent = ActivityContent(state: finalState, staleDate: nil)
-                await activity.end(finalContent, dismissalPolicy: .immediate)
-                print("Live Activity ended successfully")
-            } catch {
-                print("Error ending Live Activity: \(error.localizedDescription)")
-                if let error = error as NSError? {
-                    print("End error domain: \(error.domain), code: \(error.code)")
-                }
-            }
+            let finalContent = ActivityContent(state: finalState, staleDate: nil)
+            await activity.end(finalContent, dismissalPolicy: .immediate)
+            print("Live Activity ended successfully")
             
             // Update this property on the main thread
             await MainActor.run {
@@ -436,6 +426,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         self.isPaused = true // Start in paused state as requested
         self.editingPathId = path.id
         self.capturedPhotos = path.photos
+        // Clear current location to prevent showing stale location annotation
+        self.currentLocation = nil
         // Set up for continuing the path
         self.currentSegmentId = UUID() // New segment for continuation
         
@@ -445,7 +437,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         // Don't start the timer yet since we're starting in paused state
         // The timer will be created when resumeRecording() is called
         
-        self.resumeRecording()
+        // Don't automatically resume - let the user manually resume when ready
+        // self.resumeRecording()
         
         print("Loaded existing path for editing - Distance: \(totalDistance)m, Duration: \(elapsedTime)s")
     }
@@ -507,5 +500,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     var lastRecordedLocation: CLLocation? {
         locations.last.map { CLLocation(latitude: $0.latitude, longitude: $0.longitude) }
+    }
+    
+    var authorizationStatus: CLAuthorizationStatus {
+        return locationManager.authorizationStatus
     }
 }

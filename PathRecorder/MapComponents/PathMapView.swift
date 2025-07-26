@@ -9,28 +9,27 @@ struct PathMapView: View {
     @ObservedObject var pathStorage: PathStorage
     @State private var region: MKCoordinateRegion
     @State private var pathSegments: [PathSegment] = []
-    @State private var isEditingName = false
+    @State private var showEditingSheet = false
     @State private var editedName: String
     @State private var recordedPath: RecordedPath
     var showRenameSheetOnAppear: Bool
+    var onModifyPath: (() -> Void)?
 
-    init(recordedPath: RecordedPath, locationManager: LocationManager, pathStorage: PathStorage, showRenameSheetOnAppear: Bool = false) {
+    init(recordedPath: RecordedPath, locationManager: LocationManager, pathStorage: PathStorage, showRenameSheetOnAppear: Bool = false, onModifyPath: (() -> Void)? = nil) {
         self.locationManager = locationManager
         self.pathStorage = pathStorage
         _recordedPath = State(initialValue: recordedPath)
         // Group locations by segment first
         let segments = Dictionary(grouping: recordedPath.locations, by: { $0.segmentId })
-        let pathSegments = segments.map { segmentId, locations in
-            PathSegment(
-                id: segmentId,
-                coordinates: locations
-                    .sorted(by: { $0.timestamp < $1.timestamp })
-                    .map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) }
-            )
+        var tempSegments: [PathSegment] = []
+        for (segmentId, locations) in segments {
+            let sortedLocations = locations.sorted { $0.timestamp < $1.timestamp }
+            let coordinates = sortedLocations.map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) }
+            tempSegments.append(PathSegment(id: segmentId, coordinates: coordinates))
         }
-        _pathSegments = State(initialValue: pathSegments)
+        _pathSegments = State(initialValue: tempSegments)
         // Calculate the proper region to fit all coordinates
-        let allCoordinates = pathSegments.flatMap { $0.coordinates }
+        let allCoordinates = tempSegments.flatMap { $0.coordinates }
         let minLat = allCoordinates.map { $0.latitude }.min() ?? 0
         let maxLat = allCoordinates.map { $0.latitude }.max() ?? 0
         let minLon = allCoordinates.map { $0.longitude }.min() ?? 0
@@ -49,27 +48,36 @@ struct PathMapView: View {
         _region = State(initialValue: initialRegion)
         _editedName = State(initialValue: recordedPath.name)
         self.showRenameSheetOnAppear = showRenameSheetOnAppear
+        self.onModifyPath = onModifyPath
     }
 
     // Holds all photos at a tapped coordinate
     @State private var selectedPhotos: [PathPhoto]? = nil
     @State private var selectedPhotoIndex: Int = 0
+    @State private var pickedPathPhotos: [PathPhoto] = []
+    @State private var showAssociationAlert = false
+    @State private var associatedCount = 0
+    @State private var pendingPhotos: [PathPhoto] = []
 
     var body: some View {
+        let currentPath = pathStorage.path(for: recordedPath.id) ?? recordedPath
         MapWithPolylines(
             region: region,
-            locations: recordedPath.locations,
+            locations: currentPath.locations,
             pathSegments: pathSegments,
-            photos: recordedPath.photos,
+            photos: currentPath.photos,
             onPhotoTapped: { tappedPhoto in
+                // Always get the most current path data when a photo is tapped
+                let latestPath = pathStorage.path(for: recordedPath.id) ?? recordedPath
+                
                 // Find all photos within 10 meters of the tapped coordinate
                 let tappedLocation = CLLocation(latitude: tappedPhoto.coordinate.latitude, longitude: tappedPhoto.coordinate.longitude)
-                let nearbyPhotos = recordedPath.photos.filter {
+                let nearbyPhotos = latestPath.photos.filter {
                     let photoLocation = CLLocation(latitude: $0.coordinate.latitude, longitude: $0.coordinate.longitude)
                     return tappedLocation.distance(from: photoLocation) <= 10.0 // meters
                 }
                 selectedPhotos = nearbyPhotos
-                // Show the tapped photo first if multiple
+                // Show the tapped photo first if multiple (only if it still exists)
                 if let idx = nearbyPhotos.firstIndex(where: { $0.id == tappedPhoto.id }) {
                     selectedPhotoIndex = idx
                 } else {
@@ -77,12 +85,13 @@ struct PathMapView: View {
                 }
             }
         )
-        .navigationTitle(pathStorage.path(for: recordedPath.id)?.name ?? editedName)
+        .id(currentPath.photos.count) // Force refresh when photo count changes
+        .navigationTitle(currentPath.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: {
-                    isEditingName = true
+                    showEditingSheet = true
                 }) {
                     Image(systemName: "pencil")
                 }
@@ -91,68 +100,54 @@ struct PathMapView: View {
         .onAppear {
             if showRenameSheetOnAppear {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                    isEditingName = true
+                    showEditingSheet = true
                 }
             }
         }
-        .sheet(isPresented: $isEditingName) {
-            VStack(spacing: 18) {
-                Capsule()
-                    .fill(Color.secondary.opacity(0.3))
-                    .frame(width: 40, height: 5)
-                    .padding(.top, 8)
-                TextField("Path Name", text: $editedName)
-                    .padding(12)
-                    .background(Color(.systemGray6))
-                    .cornerRadius(10)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color.accentColor.opacity(0.5), lineWidth: 1)
-                    )
-                    .padding(.horizontal)
-                Button(action: {
-                    var updatedPath = recordedPath
-                    updatedPath.editName(editedName)
-                    recordedPath = updatedPath
-                    pathStorage.updatePath(updatedPath)
-                    isEditingName = false
-                }) {
-                    Text("Set Name")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.accentColor)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
-                        .shadow(color: Color.accentColor.opacity(0.2), radius: 2, x: 0, y: 2)
-                }
-                .padding(.horizontal)
-                .disabled(editedName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                if sheetDetent == .medium {
-                    Button(role: .destructive, action: {
-                        pathStorage.deletePath(id: recordedPath.id)
-                        isEditingName = false
-                        dismiss()
-                    }) {
-                        Text("Delete Path")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.red)
-                            .foregroundColor(.white)
-                            .cornerRadius(10)
-                            .shadow(color: Color.red.opacity(0.2), radius: 2, x: 0, y: 2)
+        .sheet(isPresented: $showEditingSheet) {
+            PathEditingSheet(
+                editedName: $editedName,
+                recordedPath: recordedPath,
+                pathStorage: pathStorage,
+                sheetDetent: sheetDetent,
+                onSetName: {
+                    if var currentPath = pathStorage.path(for: recordedPath.id) {
+                        currentPath.editName(editedName)
+                        pathStorage.updatePath(currentPath)
+                        recordedPath = currentPath
                     }
-                    .padding(.horizontal)
+                    showEditingSheet = false
+                },
+                pickedPathPhotos: $pickedPathPhotos,
+                pathSegments: pathSegments,
+                onPhotoPickerComplete: {
+                    print("Photo picker completed. Picked photos count: \(pickedPathPhotos.count)")
+                    showEditingSheet = false
+                    associatedCount = pickedPathPhotos.count
+                    pendingPhotos = pickedPathPhotos
+                    pickedPathPhotos.removeAll()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                        showAssociationAlert = true
+                    }
+                },
+                onModifyPath: {
+                    locationManager.loadPathForEditing(recordedPath, pathStorage: pathStorage)
+                    showEditingSheet = false
+                    dismiss()
+                    onModifyPath?()
+                },
+                onDeletePath: {
+                    pathStorage.deletePath(id: recordedPath.id)
+                    showEditingSheet = false
+                    dismiss()
                 }
-                Spacer()
-            }
-            .padding(.bottom, 12)
+            )
             .presentationDetents([.fraction(0.25), .medium], selection: $sheetDetent)
             .onDisappear {
                 // Reset editedName to match storage if not saved
                 if let latest = pathStorage.path(for: recordedPath.id) {
                     editedName = latest.name
+                    recordedPath = latest
                 }
             }
         }
@@ -161,10 +156,65 @@ struct PathMapView: View {
             set: { if !$0 { selectedPhotos = nil } }
         )) {
             if let photos = selectedPhotos {
-                PhotoPagerView(photos: photos, selectedIndex: $selectedPhotoIndex)
+                PhotoPagerView(
+                    photos: photos, 
+                    selectedIndex: $selectedPhotoIndex,
+                    onDeletePhoto: { photoToDelete in
+                        // Get the current path from storage
+                        if var currentPath = pathStorage.path(for: recordedPath.id) {
+                            // Remove photo from the path
+                            currentPath.deletePhoto(photoToDelete)
+                            
+                            // Update the stored path
+                            pathStorage.updatePath(currentPath)
+                            
+                            // Update the local recordedPath state as well
+                            recordedPath = currentPath
+                            
+                            // Update the selected photos list with the latest data
+                            selectedPhotos?.removeAll { $0.id == photoToDelete.id }
+                            
+                            // If no photos left, close the sheet
+                            if selectedPhotos?.isEmpty == true {
+                                selectedPhotos = nil
+                            } else if let remainingPhotos = selectedPhotos {
+                                // Adjust selected index if needed
+                                if selectedPhotoIndex >= remainingPhotos.count {
+                                    selectedPhotoIndex = max(0, remainingPhotos.count - 1)
+                                }
+                            }
+                        }
+                    }
+                )
             } else {
                 Text("No photos at this location.")
                     .padding()
+            }
+        }
+        .sheet(isPresented: Binding(get: { !showEditingSheet && showAssociationAlert && associatedCount > 0 }, set: { show in showAssociationAlert = show })) {
+            PhotoAssociationConfirmationSheet(
+                associatedCount: associatedCount,
+                pendingPhotos: pendingPhotos,
+                onAdd: {
+                    if var currentPath = pathStorage.path(for: recordedPath.id) {
+                        let existingFilenames = Set(currentPath.photos.map { $0.imageFilename })
+                        let newPhotos = pendingPhotos.filter { !existingFilenames.contains($0.imageFilename) }
+                        currentPath.photos.append(contentsOf: newPhotos)
+                        pathStorage.updatePath(currentPath)
+                        recordedPath = currentPath
+                    }
+                    pendingPhotos.removeAll()
+                    showAssociationAlert = false
+                },
+                onCancel: {
+                    pendingPhotos.removeAll()
+                    showAssociationAlert = false
+                }
+            )
+        }
+        .alert("Selected photos were not captured during path recording.", isPresented: Binding(get: { !showEditingSheet && showAssociationAlert && associatedCount == 0 }, set: { show in showAssociationAlert = show })) {
+            Button("OK", role: .cancel) {
+                pendingPhotos.removeAll()
             }
         }
     }

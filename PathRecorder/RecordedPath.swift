@@ -36,16 +36,24 @@ struct RecordedPath: Identifiable, Codable, Hashable {
     mutating func editName(_ newName: String) {
         self.name = newName
     }
+    
+    mutating func deletePhoto(_ photo: PathPhoto) {
+        photos.removeAll { $0.id == photo.id }
+        // Also delete the image file from disk
+        let url = PathPhoto.imagesDirectory.appendingPathComponent(photo.imageFilename)
+        try? FileManager.default.removeItem(at: url)
+    }
 }
 
 struct GPSLocation: Identifiable, Codable, Equatable {
-    let id = UUID()
+    let id: UUID
     let latitude: Double
     let longitude: Double
     let timestamp: Date
     let segmentId: UUID // Track which recording segment this belongs to
     
     init(latitude: Double, longitude: Double, timestamp: Date, segmentId: UUID = UUID()) {
+        self.id = UUID()
         self.latitude = latitude
         self.longitude = longitude
         self.timestamp = timestamp

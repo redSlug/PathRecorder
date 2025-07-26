@@ -12,6 +12,7 @@ class LiveMapViewController: UIViewController, MKMapViewDelegate {
     private var overlays: [UUID: MKPolyline] = [:]
     private var annotations: [UUID: MKPointAnnotation] = [:]
     var isAutoCentering: Bool = true
+    var isPaused: Bool = false
     private var isProgrammaticChange = false
     private var isUserInteracting = false
     private var bufferedLocations: [GPSLocation]? = nil
@@ -22,6 +23,12 @@ class LiveMapViewController: UIViewController, MKMapViewDelegate {
         mapView.frame = view.bounds
         mapView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         view.addSubview(mapView)
+        // Fallback to a default region if location is not available
+        let defaultRegion = MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194), // San Francisco
+            span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+        )
+        mapView.setRegion(defaultRegion, animated: false)
         mapView.isUserInteractionEnabled = true // Always allow user interaction
     }
 
@@ -56,6 +63,12 @@ class LiveMapViewController: UIViewController, MKMapViewDelegate {
         }
     }
 
+    func setIsPaused(_ value: Bool) {
+        isPaused = value
+        // Update annotations visibility based on paused state
+        updateAnnotationsVisibility()
+    }
+
     private func updateMapWithLocations(_ locations: [GPSLocation]) {
         // Efficiently update overlays and annotations
         let grouped = Dictionary(grouping: locations, by: { $0.segmentId })
@@ -75,17 +88,31 @@ class LiveMapViewController: UIViewController, MKMapViewDelegate {
                 mapView.addOverlay(polyline)
             }
         }
-        // Only show annotation for the last location
+        // Only show annotation for the last location if not paused
         // Remove all existing annotations first
         for (_, annotation) in annotations {
             mapView.removeAnnotation(annotation)
         }
         annotations.removeAll()
-        if let lastLocation = locations.last {
+        if let lastLocation = locations.last, !isPaused {
             let annotation = MKPointAnnotation()
             annotation.coordinate = CLLocationCoordinate2D(latitude: lastLocation.latitude, longitude: lastLocation.longitude)
             annotations[lastLocation.id] = annotation
             mapView.addAnnotation(annotation)
+        }
+    }
+
+    private func updateAnnotationsVisibility() {
+        if isPaused {
+            // Hide all annotations when paused
+            for (_, annotation) in annotations {
+                mapView.removeAnnotation(annotation)
+            }
+        } else {
+            // Show annotations when not paused (re-add them)
+            for (_, annotation) in annotations {
+                mapView.addAnnotation(annotation)
+            }
         }
     }
 

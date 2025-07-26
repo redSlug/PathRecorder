@@ -5,6 +5,7 @@ struct LiveMapViewControllerRepresentable: UIViewControllerRepresentable {
     @Binding var region: MKCoordinateRegion?
     var locations: [GPSLocation]
     var isAutoCentering: Bool
+    var isPaused: Bool = false
     var onUserInteraction: (() -> Void)? = nil
     var onMapTouched: (() -> Void)? = nil
 
@@ -16,11 +17,13 @@ struct LiveMapViewControllerRepresentable: UIViewControllerRepresentable {
         }
         vc.setLocations(locations)
         vc.setIsAutoCentering(isAutoCentering)
+        vc.setIsPaused(isPaused)
         return vc
     }
 
     func updateUIViewController(_ vc: LiveMapViewController, context: Context) {
         vc.setIsAutoCentering(isAutoCentering)
+        vc.setIsPaused(isPaused)
         vc.setLocations(locations)
         if isAutoCentering, let region = region {
             vc.setRegion(region, animated: true)
