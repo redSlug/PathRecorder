@@ -294,12 +294,14 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 print("Live Activity already exists, not creating a new one.")
                 return
             }
+            let unit = UserDefaults.standard.string(forKey: "distanceUnit") ?? "km"
             let initialState = PathRecorderAttributes.ContentState(
                 latitude: self.currentLocation?.coordinate.latitude ?? 0,
                 longitude: self.currentLocation?.coordinate.longitude ?? 0,
                 distance: self.totalDistance,
                 elapsedTime: self.elapsedTime,
-                isPaused: self.isPaused
+                isPaused: self.isPaused,
+                distanceUnit: unit
             )
             let attributes = PathRecorderAttributes()
             do {
@@ -326,20 +328,22 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 print("No active Live Activity to update")
                 return 
             }
-            
+
             // Capture values from main thread
-            let (currentElapsedTime, isPausedState) = await MainActor.run {
-                return (self.elapsedTime, self.isPaused)
+            let (currentElapsedTime, isPausedState, unit) = await MainActor.run {
+                let unit = UserDefaults.standard.string(forKey: "distanceUnit") ?? "km"
+                return (self.elapsedTime, self.isPaused, unit)
             }
-            
+
             let updatedState = PathRecorderAttributes.ContentState(
                 latitude: currentLocation?.coordinate.latitude ?? 0,
                 longitude: currentLocation?.coordinate.longitude ?? 0,
-                distance: totalDistance,
+                distance: self.totalDistance,
                 elapsedTime: currentElapsedTime,
-                isPaused: isPausedState
+                isPaused: isPausedState,
+                distanceUnit: unit
             )
-            
+
             let content = ActivityContent(state: updatedState, staleDate: nil)
             await activity.update(content)
             print("Live Activity updated successfully")
