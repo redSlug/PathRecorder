@@ -10,6 +10,7 @@ import MapKit
 struct RecordingView: View {
     @ObservedObject var locationManager: LocationManager
     @ObservedObject var pathStorage: PathStorage
+    @ObservedObject var settings: Settings
     var onStop: () -> Void
     
     var body: some View {
@@ -39,7 +40,7 @@ struct RecordingView: View {
                             Image(systemName: "figure.walk")
                                 .foregroundColor(.green)
                                 .font(.subheadline)
-                            Text("\(String(format: "%.2f", locationManager.totalDistance / 1000)) km")
+                            Text(settings.formatDistance(locationManager.totalDistance))
                         }
                         if locationManager.elapsedTime > 0 {
                             HStack(spacing: 10) {

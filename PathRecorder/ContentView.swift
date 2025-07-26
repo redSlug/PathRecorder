@@ -12,11 +12,13 @@ import CoreLocation
 struct ContentView: View {
     @StateObject private var locationManager = LocationManager()
     @StateObject private var pathStorage = PathStorage()
+    @StateObject private var settings = Settings()
     @State private var showRecordingSheet = false
     @State private var selectedPathForRename: RecordedPath? = nil
     @State private var navigationPath = NavigationPath()
     @State private var showRenameSheet = false
     @State private var showLocationAlert = false
+    @State private var showSettingsSheet = false
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
@@ -41,7 +43,8 @@ struct ContentView: View {
                             formatTime: formatTime,
                             onSelect: {
                                 navigationPath.append(path)
-                            }
+                            },
+                            settings: settings
                         )
                         .environmentObject(locationManager)
                     }
@@ -103,12 +106,25 @@ struct ContentView: View {
                 RecordingView(
                     locationManager: locationManager,
                     pathStorage: pathStorage,
+                    settings: settings,
                     onStop: {
                         showRecordingSheet = false
                     }
                 )
             }
             .navigationTitle("Recorded Paths")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        showSettingsSheet = true
+                    }) {
+                        Image(systemName: "gear")
+                    }
+                }
+            }
+            .sheet(isPresented: $showSettingsSheet) {
+                SettingsView(settings: settings)
+            }
             .navigationDestination(for: RecordedPath.self) { path in
                 let view = PathMapView(
                     recordedPath: path, 
@@ -139,6 +155,7 @@ struct RecordedPathRow: View {
     let onDelete: () -> Void
     let formatTime: (TimeInterval) -> String
     let onSelect: () -> Void
+    let settings: Settings
     @EnvironmentObject private var locationManager: LocationManager
     @State private var showLocationAlert = false
 
@@ -160,7 +177,7 @@ struct RecordedPathRow: View {
                         Image(systemName: "figure.walk")
                             .foregroundColor(.green)
                             .font(.subheadline)
-                        Text("\(String(format: "%.2f", path.totalDistance / 1000)) km")
+                        Text(settings.formatDistance(path.totalDistance))
                     }
                     HStack(spacing: 6) {
                         Image(systemName: "timer")
@@ -199,6 +216,35 @@ struct RecordedPathRow: View {
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("To record your path, please allow location access in Settings.")
+        }
+    }
+}
+
+struct SettingsView: View {
+    @ObservedObject var settings: Settings
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("Distance Units")) {
+                    Picker("Distance Unit", selection: $settings.distanceUnit) {
+                        ForEach(DistanceUnit.allCases, id: \.self) { unit in
+                            Text(unit.displayName).tag(unit)
+                        }
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                }
+            }
+            .navigationTitle("Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
         }
     }
 }
