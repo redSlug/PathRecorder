@@ -39,13 +39,13 @@ struct PathRecorderWidgetLiveActivity: Widget {
                     
                     HStack(spacing: 15) {
                         Label {
-                            Text(String(format: "%.2f km", context.state.distance / 1000))
+                            Text(formatDistance(context.state.distance, unit: context.state.distanceUnit))
                                 .bold()
                         } icon: {
                             Image(systemName: "figure.walk")
                                 .foregroundColor(.green)
                         }
-                        
+
                         Label {
                             Text(formatTime(context.state.elapsedTime))
                                 .bold()
@@ -73,7 +73,7 @@ struct PathRecorderWidgetLiveActivity: Widget {
             DynamicIsland {
                 // Expanded UI
                 DynamicIslandExpandedRegion(.leading) {
-                    Label(String(format: "%.2f km", context.state.distance / 1000), 
+                    Label(formatDistance(context.state.distance, unit: context.state.distanceUnit),
                           systemImage: "figure.walk")
                         .foregroundColor(.green)
                 }
@@ -103,7 +103,7 @@ struct PathRecorderWidgetLiveActivity: Widget {
                 Image(systemName: "figure.walk")
                     .foregroundColor(.green)
             } compactTrailing: {
-                Text(String(format: "%.1f", context.state.distance / 1000))
+                Text(formatDistanceCompact(context.state.distance, unit: context.state.distanceUnit))
                     .font(.caption)
                     .foregroundColor(.green)
             } minimal: {
@@ -118,6 +118,26 @@ struct PathRecorderWidgetLiveActivity: Widget {
         let minutes = Int(timeInterval) / 60 % 60
         let seconds = Int(timeInterval) % 60
         return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+    }
+
+    private func formatDistance(_ meters: Double, unit: String) -> String {
+        if unit == "mi" {
+            let miles = meters / 1000 * 0.621371
+            return String(format: "%.2f mi", miles)
+        } else {
+            let km = meters / 1000
+            return String(format: "%.2f km", km)
+        }
+    }
+
+    private func formatDistanceCompact(_ meters: Double, unit: String) -> String {
+        if unit == "mi" {
+            let miles = meters / 1000 * 0.621371
+            return String(format: "%.1f mi", miles)
+        } else {
+            let km = meters / 1000
+            return String(format: "%.1f km", km)
+        }
     }
 }
 
