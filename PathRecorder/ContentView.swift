@@ -219,38 +219,3 @@ struct RecordedPathRow: View {
         }
     }
 }
-
-struct SettingsView: View {
-    @ObservedObject var settings: Settings
-    @Environment(\.dismiss) private var dismiss
-    
-    var body: some View {
-        NavigationView {
-            Form {
-                Section(header: Text("Distance Units")) {
-                    Picker("Distance Unit", selection: $settings.distanceUnit) {
-                        ForEach(DistanceUnit.allCases, id: \.self) { unit in
-                            Text(unit.displayName).tag(unit)
-                        }
-                    }
-                    .pickerStyle(SegmentedPickerStyle())
-                }
-            }
-            .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
-            }
-        }
-    }
-}
-
-#Preview {
-    ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
-        .environmentObject(LocationManager())
-}

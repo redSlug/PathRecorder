@@ -113,7 +113,7 @@ struct MapWithPolylines: UIViewRepresentable {
                 } else {
                     annotationView?.annotation = annotation
                 }
-                annotationView?.image = MapRenderingHelpers.cachedBlueDotImage
+                annotationView?.image = MapRenderingHelpers.cachedBlueDotImage()
                 annotationView?.centerOffset = CGPoint(x: 0, y: 0)
                 annotationView?.isUserInteractionEnabled = false // Don't block touches
                 annotationView?.layer.zPosition = 0
