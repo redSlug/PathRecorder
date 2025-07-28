@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import CoreLocation
+import Shared // Import the module if needed
 
 struct ContentView: View {
     @StateObject private var locationManager = LocationManager()
@@ -180,10 +181,16 @@ struct RecordedPathRow: View {
                         Text(settings.formatDistance(path.totalDistance))
                     }
                     HStack(spacing: 6) {
-                        Image(systemName: "timer")
+                        Image(systemName: "alarm")
                             .foregroundColor(.orange)
                             .font(.subheadline)
                         Text(formatTime(path.totalDuration))
+                    }
+                    HStack(spacing: 6) {
+                        Image(systemName: "timer")
+                            .foregroundColor(.blue)
+                            .font(.subheadline)
+                        Text(computePace(distanceMeters: path.totalDistance, elapsedSeconds: path.totalDuration, unit: settings.distanceUnit.rawValue))
                     }
                 }
                 .font(.subheadline)

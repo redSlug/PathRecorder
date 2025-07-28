@@ -6,6 +6,7 @@
 
 import SwiftUI
 import MapKit
+import Shared
 
 struct RecordingView: View {
     @ObservedObject var locationManager: LocationManager
@@ -31,11 +32,11 @@ struct RecordingView: View {
                             .fontWeight(.bold)
                     }
                 }
-                VStack(alignment: .leading, spacing: 10) {
-                    if let location = locationManager.currentLocation {
+                VStack(alignment: .center, spacing: 10) {
+                    /*if let location = locationManager.currentLocation {
                         Text("GPS: \(String(format: "%.6f", location.coordinate.latitude)), \(String(format: "%.6f", location.coordinate.longitude))")
-                    }
-                    HStack(spacing: 20) {
+                     }*/
+                    HStack(spacing: 10) {
                         HStack(spacing: 10) {
                             Image(systemName: "figure.walk")
                                 .foregroundColor(.green)
@@ -44,11 +45,19 @@ struct RecordingView: View {
                         }
                         if locationManager.elapsedTime > 0 {
                             HStack(spacing: 10) {
-                                Image(systemName: "timer")
+                                Image(systemName: "alarm")
                                     .foregroundColor(.orange)
                                     .font(.subheadline)
                                 Text(formatTime(locationManager.elapsedTime))
                             }
+                        }
+                    }
+                    if !locationManager.isPaused {
+                        HStack(spacing: 10) {
+                            Image(systemName: "timer")
+                                .foregroundColor(.blue)
+                                .font(.subheadline)
+                            Text("Pace: " + computePace(distanceMeters: locationManager.totalDistance, elapsedSeconds: locationManager.elapsedTime, unit: settings.distanceUnit.rawValue))
                         }
                     }
                 }
