@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import CoreLocation
+import Shared // Import the module if needed
 
 struct ContentView: View {
     @StateObject private var locationManager = LocationManager()
@@ -180,10 +181,16 @@ struct RecordedPathRow: View {
                         Text(settings.formatDistance(path.totalDistance))
                     }
                     HStack(spacing: 6) {
-                        Image(systemName: "timer")
+                        Image(systemName: "alarm")
                             .foregroundColor(.orange)
                             .font(.subheadline)
                         Text(formatTime(path.totalDuration))
+                    }
+                    HStack(spacing: 6) {
+                        Image(systemName: "timer")
+                            .foregroundColor(.blue)
+                            .font(.subheadline)
+                        Text(computePace(distanceMeters: path.totalDistance, elapsedSeconds: path.totalDuration, unit: settings.distanceUnit.rawValue))
                     }
                 }
                 .font(.subheadline)
@@ -218,39 +225,4 @@ struct RecordedPathRow: View {
             Text("To record your path, please allow location access in Settings.")
         }
     }
-}
-
-struct SettingsView: View {
-    @ObservedObject var settings: Settings
-    @Environment(\.dismiss) private var dismiss
-    
-    var body: some View {
-        NavigationView {
-            Form {
-                Section(header: Text("Distance Units")) {
-                    Picker("Distance Unit", selection: $settings.distanceUnit) {
-                        ForEach(DistanceUnit.allCases, id: \.self) { unit in
-                            Text(unit.displayName).tag(unit)
-                        }
-                    }
-                    .pickerStyle(SegmentedPickerStyle())
-                }
-            }
-            .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
-            }
-        }
-    }
-}
-
-#Preview {
-    ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
-        .environmentObject(LocationManager())
 }

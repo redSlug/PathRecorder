@@ -11,6 +11,7 @@ public struct PathRecorderAttributes: ActivityAttributes {
         public var elapsedTime: TimeInterval
         public var isPaused: Bool
         public var distanceUnit: String // "km" or "mi"
+        // public var pace: String
 
         public init(latitude: Double, longitude: Double, distance: Double, elapsedTime: TimeInterval, isPaused: Bool = false, distanceUnit: String = "km") {
             self.latitude = latitude
@@ -19,6 +20,7 @@ public struct PathRecorderAttributes: ActivityAttributes {
             self.elapsedTime = elapsedTime
             self.isPaused = isPaused
             self.distanceUnit = distanceUnit
+            // self.pace = computePace(distanceMeters: distance, elapsedSeconds: elapsedTime, unit: distanceUnit)
         }
     }
     
@@ -32,4 +34,22 @@ public func formatTime(_ timeInterval: TimeInterval) -> String {
     let seconds = Int(timeInterval) % 60
     return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
 }
+
+/// Computes pace per mile or km (minutes per unit) given distance in meters and elapsed time in seconds.
+/// - Parameters:
+///   - distanceMeters: Distance in meters
+///   - elapsedSeconds: Elapsed time in seconds
+///   - unit: "km" or "mi"
+/// - Returns: Pace as a formatted string "mm:ss /unit"
+public func computePace(distanceMeters: Double, elapsedSeconds: TimeInterval, unit: String) -> String {
+    guard distanceMeters > 0 else { return "--:-- /" + unit }
+    let metersPerUnit: Double = (unit == "mi") ? 1609.34 : 1000.0
+    let units = distanceMeters / metersPerUnit
+    guard units > 0 else { return "--:-- /" + unit }
+    let paceSeconds = elapsedSeconds / units
+    let paceMinutes = Int(paceSeconds) / 60
+    let paceRemainderSeconds = Int(paceSeconds) % 60
+    return String(format: "%02d:%02d /%@", paceMinutes, paceRemainderSeconds, unit)
+}
+
 

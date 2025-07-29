@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 enum DistanceUnit: String, CaseIterable, Codable {
     case kilometers = "km"
@@ -38,7 +39,18 @@ class Settings: ObservableObject {
             UserDefaults.standard.set(distanceUnit.rawValue, forKey: "distanceUnit")
         }
     }
-    
+
+    @Published var mapColor: Color {
+        didSet {
+            // Store as hex string
+            UserDefaults.standard.set(mapColor.toHexString(), forKey: "mapColor")
+        }
+    }
+
+    var mapColorUIColor: UIColor {
+        UIColor(mapColor)
+    }
+
     init() {
         if let savedUnit = UserDefaults.standard.string(forKey: "distanceUnit"),
            let unit = DistanceUnit(rawValue: savedUnit) {
@@ -46,14 +58,79 @@ class Settings: ObservableObject {
         } else {
             self.distanceUnit = .kilometers
         }
+
+        if let savedColorHex = UserDefaults.standard.string(forKey: "mapColor"),
+           let color = Color.fromHexString(savedColorHex) {
+            self.mapColor = color
+        } else {
+            self.mapColor = .blue
+        }
     }
     
     func convertDistance(_ meters: Double) -> Double {
         return meters / 1000 * distanceUnit.conversionFactor
     }
-    
+
     func formatDistance(_ meters: Double) -> String {
         let convertedDistance = convertDistance(meters)
         return String(format: "%.2f %@", convertedDistance, distanceUnit.unitLabel)
     }
-} 
+}
+
+struct SettingsView: View {
+    @ObservedObject var settings: Settings
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("Distance Units")) {
+                    Picker("Distance Unit", selection: $settings.distanceUnit) {
+                        ForEach(DistanceUnit.allCases, id: \.self) { unit in
+                            Text(unit.displayName).tag(unit)
+                        }
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                }
+                Section(header: Text("Map Path Color")) {
+                    ColorPicker("Path Color", selection: $settings.mapColor, supportsOpacity: false)
+                }
+            }
+            .navigationTitle("Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Color <-> Hex helpers
+extension Color {
+    func toHexString() -> String {
+        let uiColor = UIColor(self)
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+        uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        let rgb: Int = (Int)(red*255)<<16 | (Int)(green*255)<<8 | (Int)(blue*255)<<0
+        return String(format: "%06x", rgb)
+    }
+
+    static func fromHexString(_ hex: String) -> Color? {
+        var hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        hexSanitized = hexSanitized.replacingOccurrences(of: "#", with: "")
+        var rgb: UInt64 = 0
+        guard Scanner(string: hexSanitized).scanHexInt64(&rgb) else { return nil }
+        let r = Double((rgb & 0xFF0000) >> 16) / 255.0
+        let g = Double((rgb & 0x00FF00) >> 8) / 255.0
+        let b = Double(rgb & 0x0000FF) / 255.0
+        return Color(red: r, green: g, blue: b)
+    }
+}
+

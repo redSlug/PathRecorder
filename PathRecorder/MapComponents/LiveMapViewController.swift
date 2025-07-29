@@ -148,7 +148,7 @@ class LiveMapViewController: UIViewController, MKMapViewDelegate {
         } else {
             annotationView?.annotation = annotation
         }
-        annotationView?.image = MapRenderingHelpers.cachedGlowingBlueDotImage
+        annotationView?.image = MapRenderingHelpers.cachedGlowingBlueDotImage()
         annotationView?.centerOffset = CGPoint(x: 0, y: 0)
         return annotationView
     }
