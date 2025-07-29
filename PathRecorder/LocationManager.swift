@@ -438,11 +438,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         // Start Live Activity immediately with the correct initial values
         self.startLiveActivity()
         
-        // Don't start the timer yet since we're starting in paused state
-        // The timer will be created when resumeRecording() is called
-        
-        // Don't automatically resume - let the user manually resume when ready
-        // self.resumeRecording()
+        // Automatically resume when editing the path
+        self.resumeRecording()
         
         print("Loaded existing path for editing - Distance: \(totalDistance)m, Duration: \(elapsedTime)s")
     }
