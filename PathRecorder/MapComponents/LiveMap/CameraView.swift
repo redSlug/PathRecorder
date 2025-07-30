@@ -28,34 +28,12 @@ struct CameraView: View {
         ZStack {
             if let image = previewImage {
                 VStack {
-                    HStack {
-                        Button(action: {
-                            previewImage = nil
-                            cameraService.clearPendingPhoto() // Clear pending photo when retaking
-                            isPresented = false
-                        }) {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 24))
-                                .foregroundColor(.white)
-                                .padding()
-                        }
-                        Spacer()
-                    }
-                    Spacer()
-                }
-                VStack {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFit()
-                        .ignoresSafeArea()
-                }
-                VStack {
                     Spacer()
                     HStack {
                         Button("Retake") {
                             previewImage = nil
-                            cameraService.clearPendingPhoto() // Clear pending photo when retaking
-                            cameraService.restartSession() // Properly restart the session
+                            cameraService.clearPendingPhoto()
+                            cameraService.restartSession()
                         }
                         .padding()
                         .foregroundColor(.white)
@@ -68,6 +46,12 @@ struct CameraView: View {
                     }
                     .background(Color.black.opacity(0.6))
                 }
+                .background(
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .ignoresSafeArea()
+                )
             } else {
                 CameraPreview(
                     session: cameraService.session,
