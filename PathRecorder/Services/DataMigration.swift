@@ -7,6 +7,7 @@ class DataMigration {
     private let userDefaults: UserDefaults
     private let migratedV1Key = "DataMigrationV1Completed"
     private let migratedV2Key = "DataMigrationV2Completed"
+    private let migratedV3Key = "DataMigrationV3Completed"
 
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
@@ -20,6 +21,10 @@ class DataMigration {
         if !userDefaults.bool(forKey: migratedV2Key) {
             migrateV2()
             userDefaults.set(true, forKey: migratedV2Key)
+        }
+        if !userDefaults.bool(forKey: migratedV3Key) {
+            migrateV3()
+            userDefaults.set(true, forKey: migratedV3Key)
         }
     }
 
@@ -110,6 +115,38 @@ class DataMigration {
             }
         } catch {
             print("V2 migration error: \(error)")
+        }
+    }
+
+    // MARK: - V3: drop stale segment-start anchors from markSegment() called before GPS delivered a fresh location
+
+    private func migrateV3() {
+        guard let data = userDefaults.data(forKey: "RecordedPaths") else { return }
+        do {
+            var paths = try JSONDecoder().decode([RecordedPath].self, from: data)
+            // If the gap between a segment's first and second location exceeds this, the first
+            // location is a stale cached reading injected at recording start, not a real GPS fix.
+            let staleThreshold: TimeInterval = 60
+
+            for i in paths.indices {
+                for j in paths[i].segments.indices {
+                    let locs = paths[i].segments[j].locations
+                    guard locs.count >= 2 else { continue }
+                    let gap = locs[1].timestamp.timeIntervalSince(locs[0].timestamp)
+                    if gap > staleThreshold {
+                        paths[i].segments[j] = PathSegment(
+                            id: paths[i].segments[j].id,
+                            locations: Array(locs.dropFirst())
+                        )
+                    }
+                }
+            }
+
+            if let encoded = try? JSONEncoder().encode(paths) {
+                userDefaults.set(encoded, forKey: "RecordedPaths")
+            }
+        } catch {
+            print("V3 migration error: \(error)")
         }
     }
 }

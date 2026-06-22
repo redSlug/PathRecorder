@@ -156,7 +156,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         self.editingPathId = nil
         self.editingPathName = nil
         locationManager.startUpdatingLocation()
-        self.markSegment() // Ensure segment starts with a coordinate
         startLiveActivity()
         // Start a timer to update elapsed time and Live Activity every second
         startActivityTimer()
