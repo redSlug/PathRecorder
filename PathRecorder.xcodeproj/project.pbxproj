@@ -85,13 +85,6 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
-		B9AD17792F65C51F00DB89CE /* Exceptions for "PathRecorder" folder in "Copy Bundle Resources" phase from "PathRecorder" target */ = {
-			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
-			buildPhase = 6141C8D12DECACB90034946C /* Resources */;
-			membershipExceptions = (
-				Supabase.swift,
-			);
-		};
 /* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -99,7 +92,6 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				B9AAE7DD2E34815900CD6869 /* Exceptions for "PathRecorder" folder in "PathRecorder" target */,
-				B9AD17792F65C51F00DB89CE /* Exceptions for "PathRecorder" folder in "Copy Bundle Resources" phase from "PathRecorder" target */,
 			);
 			path = PathRecorder;
 			sourceTree = "<group>";

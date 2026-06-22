@@ -3,6 +3,114 @@ import SwiftUI
 import UIKit
 import Supabase
 
+struct CountryDialCode: Identifiable, Equatable {
+    let id: String
+    let flag: String
+    let name: String
+    let dialCode: String
+
+    static let us = CountryDialCode(id: "US", flag: "🇺🇸", name: "United States", dialCode: "+1")
+
+    static let all: [CountryDialCode] = [
+        .us,
+        CountryDialCode(id: "CA", flag: "🇨🇦", name: "Canada", dialCode: "+1"),
+        CountryDialCode(id: "GB", flag: "🇬🇧", name: "United Kingdom", dialCode: "+44"),
+        CountryDialCode(id: "AU", flag: "🇦🇺", name: "Australia", dialCode: "+61"),
+        CountryDialCode(id: "DE", flag: "🇩🇪", name: "Germany", dialCode: "+49"),
+        CountryDialCode(id: "FR", flag: "🇫🇷", name: "France", dialCode: "+33"),
+        CountryDialCode(id: "IT", flag: "🇮🇹", name: "Italy", dialCode: "+39"),
+        CountryDialCode(id: "ES", flag: "🇪🇸", name: "Spain", dialCode: "+34"),
+        CountryDialCode(id: "NL", flag: "🇳🇱", name: "Netherlands", dialCode: "+31"),
+        CountryDialCode(id: "BE", flag: "🇧🇪", name: "Belgium", dialCode: "+32"),
+        CountryDialCode(id: "CH", flag: "🇨🇭", name: "Switzerland", dialCode: "+41"),
+        CountryDialCode(id: "AT", flag: "🇦🇹", name: "Austria", dialCode: "+43"),
+        CountryDialCode(id: "SE", flag: "🇸🇪", name: "Sweden", dialCode: "+46"),
+        CountryDialCode(id: "NO", flag: "🇳🇴", name: "Norway", dialCode: "+47"),
+        CountryDialCode(id: "DK", flag: "🇩🇰", name: "Denmark", dialCode: "+45"),
+        CountryDialCode(id: "FI", flag: "🇫🇮", name: "Finland", dialCode: "+358"),
+        CountryDialCode(id: "PL", flag: "🇵🇱", name: "Poland", dialCode: "+48"),
+        CountryDialCode(id: "CZ", flag: "🇨🇿", name: "Czech Republic", dialCode: "+420"),
+        CountryDialCode(id: "PT", flag: "🇵🇹", name: "Portugal", dialCode: "+351"),
+        CountryDialCode(id: "GR", flag: "🇬🇷", name: "Greece", dialCode: "+30"),
+        CountryDialCode(id: "RU", flag: "🇷🇺", name: "Russia", dialCode: "+7"),
+        CountryDialCode(id: "TR", flag: "🇹🇷", name: "Turkey", dialCode: "+90"),
+        CountryDialCode(id: "IN", flag: "🇮🇳", name: "India", dialCode: "+91"),
+        CountryDialCode(id: "CN", flag: "🇨🇳", name: "China", dialCode: "+86"),
+        CountryDialCode(id: "JP", flag: "🇯🇵", name: "Japan", dialCode: "+81"),
+        CountryDialCode(id: "KR", flag: "🇰🇷", name: "South Korea", dialCode: "+82"),
+        CountryDialCode(id: "SG", flag: "🇸🇬", name: "Singapore", dialCode: "+65"),
+        CountryDialCode(id: "HK", flag: "🇭🇰", name: "Hong Kong", dialCode: "+852"),
+        CountryDialCode(id: "TW", flag: "🇹🇼", name: "Taiwan", dialCode: "+886"),
+        CountryDialCode(id: "PH", flag: "🇵🇭", name: "Philippines", dialCode: "+63"),
+        CountryDialCode(id: "ID", flag: "🇮🇩", name: "Indonesia", dialCode: "+62"),
+        CountryDialCode(id: "MY", flag: "🇲🇾", name: "Malaysia", dialCode: "+60"),
+        CountryDialCode(id: "TH", flag: "🇹🇭", name: "Thailand", dialCode: "+66"),
+        CountryDialCode(id: "VN", flag: "🇻🇳", name: "Vietnam", dialCode: "+84"),
+        CountryDialCode(id: "PK", flag: "🇵🇰", name: "Pakistan", dialCode: "+92"),
+        CountryDialCode(id: "BD", flag: "🇧🇩", name: "Bangladesh", dialCode: "+880"),
+        CountryDialCode(id: "AE", flag: "🇦🇪", name: "UAE", dialCode: "+971"),
+        CountryDialCode(id: "SA", flag: "🇸🇦", name: "Saudi Arabia", dialCode: "+966"),
+        CountryDialCode(id: "IL", flag: "🇮🇱", name: "Israel", dialCode: "+972"),
+        CountryDialCode(id: "EG", flag: "🇪🇬", name: "Egypt", dialCode: "+20"),
+        CountryDialCode(id: "MA", flag: "🇲🇦", name: "Morocco", dialCode: "+212"),
+        CountryDialCode(id: "NG", flag: "🇳🇬", name: "Nigeria", dialCode: "+234"),
+        CountryDialCode(id: "KE", flag: "🇰🇪", name: "Kenya", dialCode: "+254"),
+        CountryDialCode(id: "ZA", flag: "🇿🇦", name: "South Africa", dialCode: "+27"),
+        CountryDialCode(id: "BR", flag: "🇧🇷", name: "Brazil", dialCode: "+55"),
+        CountryDialCode(id: "MX", flag: "🇲🇽", name: "Mexico", dialCode: "+52"),
+        CountryDialCode(id: "AR", flag: "🇦🇷", name: "Argentina", dialCode: "+54"),
+        CountryDialCode(id: "CO", flag: "🇨🇴", name: "Colombia", dialCode: "+57"),
+        CountryDialCode(id: "CL", flag: "🇨🇱", name: "Chile", dialCode: "+56"),
+        CountryDialCode(id: "PE", flag: "🇵🇪", name: "Peru", dialCode: "+51"),
+    ]
+}
+
+struct CountryPickerView: View {
+    @Binding var selectedCountry: CountryDialCode
+    @Environment(\.dismiss) private var dismiss
+    @State private var searchText = ""
+
+    var filtered: [CountryDialCode] {
+        if searchText.isEmpty { return CountryDialCode.all }
+        return CountryDialCode.all.filter {
+            $0.name.localizedCaseInsensitiveContains(searchText) ||
+            $0.dialCode.contains(searchText)
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List(filtered) { country in
+                Button {
+                    selectedCountry = country
+                    dismiss()
+                } label: {
+                    HStack {
+                        Text(country.flag)
+                        Text(country.name)
+                            .foregroundColor(.primary)
+                        Spacer()
+                        Text(country.dialCode)
+                            .foregroundColor(.secondary)
+                        if country == selectedCountry {
+                            Image(systemName: "checkmark")
+                                .foregroundColor(.accentColor)
+                        }
+                    }
+                }
+            }
+            .searchable(text: $searchText, prompt: "Search country")
+            .navigationTitle("Country Code")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
 enum DistanceUnit: String, CaseIterable, Codable {
     case kilometers = "km"
     case miles = "mi"
@@ -70,6 +178,8 @@ struct SettingsView: View {
     @State private var isSigningOut = false
     @State private var backupSuccessMessage: String? = nil
     // Inline sign-in OTP flow
+    @State private var selectedCountry: CountryDialCode = .us
+    @State private var showCountryPicker = false
     @State private var authPhone = ""
     @State private var authOTP = ""
     @State private var didRequestOTP = false
@@ -77,17 +187,18 @@ struct SettingsView: View {
     @State private var isVerifyingOTP = false
     @State private var authErrorMessage: String? = nil
 
+    private var fullPhone: String {
+        selectedCountry.dialCode + authPhone.filter(\.isNumber)
+    }
+
+    private var isPhoneValid: Bool {
+        let digits = authPhone.filter(\.isNumber)
+        return digits.count >= 6 && digits.count <= 14
+    }
+
     var body: some View {
         NavigationView {
             Form {
-                Section(header: Text("Distance Units")) {
-                    Picker("Distance Unit", selection: $settings.distanceUnit) {
-                        ForEach(DistanceUnit.allCases, id: \.self) { unit in
-                            Text(unit.displayName).tag(unit)
-                        }
-                    }
-                    .pickerStyle(SegmentedPickerStyle())
-                }
                 Section(header: Text("Account")) {
                     if authManager.isAuthenticated {
                         HStack {
@@ -145,37 +256,68 @@ struct SettingsView: View {
                         }
                         .disabled(isSigningOut || authManager.isUploadingBackup)
                     } else {
-                        TextField("+15551234567", text: $authPhone)
-                            .keyboardType(.phonePad)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled(true)
+                        HStack(spacing: 0) {
+                            Button {
+                                showCountryPicker = true
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Text(selectedCountry.flag)
+                                    Text(selectedCountry.dialCode)
+                                        .foregroundColor(.primary)
+                                    Image(systemName: "chevron.down")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                                .padding(.trailing, 8)
+                            }
+                            .buttonStyle(.plain)
 
-                        Button(isSendingOTP ? "Sending..." : "Send Code") {
-                            Task { await sendOTP() }
+                            TextField("Phone number", text: $authPhone)
+                                .keyboardType(.phonePad)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled(true)
+                                .onChange(of: authPhone) { _ in
+                                    if didRequestOTP { didRequestOTP = false; authOTP = "" }
+                                }
                         }
-                        .disabled(isSendingOTP || authPhone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .sheet(isPresented: $showCountryPicker) {
+                            CountryPickerView(selectedCountry: $selectedCountry)
+                        }
+                        .onChange(of: selectedCountry) { _ in
+                            if didRequestOTP { didRequestOTP = false; authOTP = "" }
+                        }
 
                         if didRequestOTP {
                             TextField("6-digit code", text: $authOTP)
                                 .keyboardType(.numberPad)
                                 .textInputAutocapitalization(.never)
                                 .autocorrectionDisabled(true)
-
+                        }
+                        if didRequestOTP && authOTP.filter(\.isNumber).count == 6 {
                             Button(isVerifyingOTP ? "Verifying..." : "Verify Code") {
                                 Task { await verifyOTP() }
                             }
-                            .disabled(isVerifyingOTP || authOTP.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-
-                            Button("Resend Code") {
+                            .disabled(isVerifyingOTP)
+                        } else {
+                            Button(isSendingOTP ? "Sending..." : didRequestOTP ? "Resend Code" : "Send Code") {
                                 Task { await sendOTP() }
                             }
-                            .disabled(isSendingOTP)
+                            .disabled(isSendingOTP || !isPhoneValid)
                         }
+
 
                         Text("Enter your phone number to sign in or create an account.")
                             .font(.footnote)
                             .foregroundColor(.secondary)
                     }
+                }
+                Section(header: Text("Distance Units")) {
+                    Picker("Distance Unit", selection: $settings.distanceUnit) {
+                        ForEach(DistanceUnit.allCases, id: \.self) { unit in
+                            Text(unit.displayName).tag(unit)
+                        }
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
                 }
             }
             .navigationTitle("Settings")
@@ -209,7 +351,19 @@ struct SettingsView: View {
         let total = elapsed / authManager.backupProgress
         let remaining = total - elapsed
         guard remaining > 1 else { return nil }
-        return "~\(Int(remaining.rounded()))s remaining"
+        let secs = Int(remaining.rounded())
+        let y = secs / (365 * 24 * 3600)
+        let d = (secs % (365 * 24 * 3600)) / (24 * 3600)
+        let h = (secs % (24 * 3600)) / 3600
+        let m = (secs % 3600) / 60
+        let s = secs % 60
+        var parts: [String] = []
+        if y > 0 { parts.append("\(y)y") }
+        if d > 0 { parts.append("\(d)d") }
+        if h > 0 { parts.append("\(h)h") }
+        if m > 0 { parts.append("\(m)m") }
+        if s > 0 || parts.isEmpty { parts.append("\(s)s") }
+        return "~\(parts.joined(separator: " ")) left"
     }
 
     private func uploadBackup() async {
@@ -351,7 +505,7 @@ struct SettingsView: View {
         authErrorMessage = nil
         defer { isSendingOTP = false }
         do {
-            try await authManager.requestOTP(phone: authPhone)
+            try await authManager.requestOTP(phone: fullPhone)
             didRequestOTP = true
         } catch {
             authErrorMessage = error.localizedDescription
@@ -363,8 +517,9 @@ struct SettingsView: View {
         authErrorMessage = nil
         defer { isVerifyingOTP = false }
         do {
-            try await authManager.verifyOTP(phone: authPhone, token: authOTP)
+            try await authManager.verifyOTP(phone: fullPhone, token: authOTP)
             authOTP = ""
+            authPhone = ""
             didRequestOTP = false
         } catch {
             authErrorMessage = error.localizedDescription

@@ -251,7 +251,7 @@ enum AuthFlowError: LocalizedError {
   var errorDescription: String? {
     switch self {
     case .invalidPhone:
-      return "Enter a valid phone number in E.164 format (example: +15551234567)."
+      return "Enter a valid phone number."
     case .invalidOTP:
       return "Enter the OTP code sent to your phone."
     }
