@@ -27,10 +27,12 @@ struct ContentView: View {
         }
     }
     @EnvironmentObject private var authManager: AuthManager
+    @EnvironmentObject private var backupService: BackupRestoreService
     @StateObject private var locationManager = LocationManager()
     @StateObject private var pathStorage = PathStorage()
     @StateObject private var settings = Settings()
     @State private var showRecordingSheet = false
+    @State private var recordingPulse = false
     @State private var selectedPathForRename: RecordedPath? = nil
     @State private var navigationPath = NavigationPath()
     @State private var showRenameSheet = false
@@ -104,42 +106,56 @@ struct ContentView: View {
                 }
                 .listStyle(.plain)
 
-                Button(action: {
-                    if locationManager.authorizationStatus == .authorizedAlways || locationManager.authorizationStatus == .authorizedWhenInUse {
-                        locationManager.startRecording()
+                if locationManager.isRecording {
+                    Button {
                         showRecordingSheet = true
-                    } else {
-                        showLocationAlert = true
-                    }
-                }) {
-                    Text("Start Recording")
-                        .font(.headline)
-                        .foregroundColor(.white)
+                    } label: {
+                        HStack(spacing: 8) {
+                            Text(locationManager.isPaused ? "Paused — Tap to Return" : "Recording — Tap to Return")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                        }
                         .padding()
                         .frame(maxWidth: .infinity)
-                        .background(Color.green)
+                        .background(locationManager.isPaused ? Color.orange : Color.red)
                         .cornerRadius(10)
-                }
-                .padding(.horizontal)
-                .alert("Location Access Needed", isPresented: $showLocationAlert) {
-                    Button("Open Settings") {
-                        if let url = URL(string: UIApplication.openSettingsURLString) {
-                            UIApplication.shared.open(url)
-                        }
                     }
-                    Button("Cancel", role: .cancel) { }
-                } message: {
-                    Text("To record your path, please allow location access in Settings.")
+                    .padding(.horizontal)
+                    .onAppear { recordingPulse = true }
+                } else {
+                    Button(action: {
+                        if locationManager.authorizationStatus == .authorizedAlways || locationManager.authorizationStatus == .authorizedWhenInUse {
+                            locationManager.startRecording()
+                            showRecordingSheet = true
+                        } else {
+                            showLocationAlert = true
+                        }
+                    }) {
+                        Text("Start Recording")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(Color.green)
+                            .cornerRadius(10)
+                    }
+                    .padding(.horizontal)
+                    .alert("Location Access Needed", isPresented: $showLocationAlert) {
+                        Button("Open Settings") {
+                            if let url = URL(string: UIApplication.openSettingsURLString) {
+                                UIApplication.shared.open(url)
+                            }
+                        }
+                        Button("Cancel", role: .cancel) { }
+                    } message: {
+                        Text("To record your path, please allow location access in Settings.")
+                    }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding()
             .onAppear {
                 locationManager.requestPermission()
-                // Automatically show recording view if in-progress recording exists
-                if locationManager.isRecording && locationManager.isPaused {
-                    showRecordingSheet = true
-                }
                 // Show StoreKit review prompt if more than 3 recordings and not shown before
                 let hasShownRateAlert = UserDefaults.standard.bool(forKey: rateAlertKey)
                 if pathStorage.recordedPaths.count >= 3 && !hasShownRateAlert {
@@ -151,7 +167,7 @@ struct ContentView: View {
             }
             .onChange(of: authManager.currentUser?.id) { _, userId in
                 if userId != nil {
-                    Task { await authManager.syncOnLogin(pathStorage: pathStorage) }
+                    Task { await authManager.syncOnLogin(pathStorage: pathStorage, backupService: backupService) }
                 } else {
                     authManager.unsyncedPathIds = []
                     authManager.dirtyPathIds = []
@@ -173,14 +189,7 @@ struct ContentView: View {
                     showRenameSheet = locationManager.editingPathName == nil
                 }
             }
-            .fullScreenCover(isPresented: Binding(
-                get: { showRecordingSheet },
-                set: { newValue in
-                    if !newValue {
-                        showRecordingSheet = false
-                    }
-                })
-            ) {
+            .navigationDestination(isPresented: $showRecordingSheet) {
                 RecordingView(
                     locationManager: locationManager,
                     pathStorage: pathStorage,
@@ -202,6 +211,7 @@ struct ContentView: View {
             }
             .sheet(isPresented: $showSettingsSheet) {
                 SettingsView(settings: settings, pathStorage: pathStorage)
+                    .environmentObject(backupService)
             }
             .navigationDestination(for: RecordedPath.self) { path in
                 PathMapView(

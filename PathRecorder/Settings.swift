@@ -173,10 +173,10 @@ struct SettingsView: View {
     @ObservedObject var settings: Settings
     @ObservedObject var pathStorage: PathStorage
     @EnvironmentObject private var authManager: AuthManager
+    @EnvironmentObject private var backupService: BackupRestoreService
     @Environment(\.dismiss) private var dismiss
     // Sign-out
     @State private var isSigningOut = false
-    @State private var backupSuccessMessage: String? = nil
     // Inline sign-in OTP flow
     @State private var selectedCountry: CountryDialCode = .us
     @State private var showCountryPicker = false
@@ -207,24 +207,33 @@ struct SettingsView: View {
                             Text(authManager.displayPhone(for: authManager.currentUser))
                                 .foregroundColor(.secondary)
                         }
-                        if authManager.isRestoringFromCloud {
+                        if backupService.isRestoringFromCloud {
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack {
-                                    Text("Restoring from cloud... \(Int(authManager.restoreProgress * 100))%")
+                                    Text("Restoring from cloud... \(Int(backupService.restoreProgress * 100))%")
                                         .font(.subheadline)
                                     Spacer()
                                 }
-                                ProgressView(value: authManager.restoreProgress)
+                                ProgressView(value: backupService.restoreProgress)
                             }
                         }
-                        if authManager.isUploadingBackup || authManager.hasUnsyncedPaths {
+                        if backupService.isUploadingBackup || authManager.hasUnsyncedPaths {
                             Button {
-                                Task { await uploadBackup() }
+                                if let userId = authManager.currentUser?.id {
+                                    Task {
+                                        backupService.startBackup(
+                                            pathIds: authManager.unsyncedPathIds.union(authManager.dirtyPathIds),
+                                            allPaths: pathStorage.recordedPaths,
+                                            userId: userId,
+                                            authManager: authManager
+                                        )
+                                    }
+                                }
                             } label: {
-                                if authManager.isUploadingBackup {
+                                if backupService.isUploadingBackup {
                                     VStack(alignment: .leading, spacing: 4) {
                                         HStack {
-                                            Text("Backing up... \(Int(authManager.backupProgress * 100))%")
+                                            Text("Backing up... \(Int(backupService.backupProgress * 100))%")
                                                 .font(.subheadline)
                                             Spacer()
                                             if let remaining = estimatedTimeRemaining {
@@ -233,7 +242,7 @@ struct SettingsView: View {
                                                     .foregroundColor(.secondary)
                                             }
                                         }
-                                        ProgressView(value: authManager.backupProgress)
+                                        ProgressView(value: backupService.backupProgress)
                                     }
                                 } else {
                                     HStack {
@@ -242,7 +251,7 @@ struct SettingsView: View {
                                     }
                                 }
                             }
-                            .disabled(authManager.isUploadingBackup)
+                            .disabled(backupService.isUploadingBackup)
                         }
 
                         Button(role: .destructive) {
@@ -254,7 +263,7 @@ struct SettingsView: View {
                                 Text("Sign Out")
                             }
                         }
-                        .disabled(isSigningOut || authManager.isUploadingBackup)
+                        .disabled(isSigningOut || backupService.isUploadingBackup)
                     } else {
                         HStack(spacing: 0) {
                             Button {
@@ -273,7 +282,7 @@ struct SettingsView: View {
                             .buttonStyle(.plain)
 
                             TextField("Phone number", text: $authPhone)
-                                .keyboardType(.phonePad)
+                                .keyboardType(.numberPad)
                                 .textInputAutocapitalization(.never)
                                 .autocorrectionDisabled(true)
                                 .onChange(of: authPhone) { _ in
@@ -330,25 +339,26 @@ struct SettingsView: View {
                 }
             }
         }
-        .alert("Backup Saved", isPresented: .constant(backupSuccessMessage != nil)) {
-            Button("OK") { backupSuccessMessage = nil }
+        .alert("Backup Saved", isPresented: .constant(backupService.backupSuccessMessage != nil)) {
+            Button("OK") { backupService.backupSuccessMessage = nil }
         } message: {
-            Text(backupSuccessMessage ?? "")
+            Text(backupService.backupSuccessMessage ?? "")
         }
-        .alert("Auth Error", isPresented: .constant(authErrorMessage != nil)) {
+        .alert("Auth Error", isPresented: .constant(authErrorMessage != nil || backupService.lastBackupError != nil)) {
             Button("OK") {
                 authErrorMessage = nil
+                backupService.lastBackupError = nil
             }
         } message: {
-            Text(authErrorMessage ?? "Unknown error")
+            Text(authErrorMessage ?? backupService.lastBackupError ?? "Unknown error")
         }
     }
 
     private var estimatedTimeRemaining: String? {
-        guard let start = authManager.backupStartTime,
-              authManager.backupProgress > 0.05 else { return nil }
+        guard let start = backupService.backupStartTime,
+              backupService.backupProgress > 0.05 else { return nil }
         let elapsed = Date().timeIntervalSince(start)
-        let total = elapsed / authManager.backupProgress
+        let total = elapsed / backupService.backupProgress
         let remaining = total - elapsed
         guard remaining > 1 else { return nil }
         let secs = Int(remaining.rounded())
@@ -364,130 +374,6 @@ struct SettingsView: View {
         if m > 0 { parts.append("\(m)m") }
         if s > 0 || parts.isEmpty { parts.append("\(s)s") }
         return "~\(parts.joined(separator: " ")) left"
-    }
-
-    private func uploadBackup() async {
-        guard let userId = authManager.currentUser?.id else {
-            authErrorMessage = "Not signed in."
-            return
-        }
-        authManager.isUploadingBackup = true
-        authManager.backupProgress = 0.0
-        authManager.backupStartTime = Date()
-        defer {
-            authManager.isUploadingBackup = false
-            authManager.backupProgress = 0.0
-            authManager.backupStartTime = nil
-        }
-        do {
-            struct PathRow: Encodable {
-                let id: UUID
-                let user_id: UUID
-                let name: String
-                let created_at: Date
-            }
-            struct SegmentRow: Encodable {
-                let id: UUID
-                let path_id: UUID
-            }
-            struct LocationRow: Encodable {
-                let id: UUID
-                let segment_id: UUID
-                let latitude: Double
-                let longitude: Double
-                let timestamp: Date
-            }
-            struct PhotoRow: Encodable {
-                let id: UUID
-                let user_id: UUID
-                let location_id: UUID
-                let timestamp: Date
-                let storage_path: String
-            }
-
-            var pathRows: [PathRow] = []
-            var segmentRows: [SegmentRow] = []
-            var locationRows: [LocationRow] = []
-            var photoRows: [PhotoRow] = []
-
-            let pathsToUpload = authManager.unsyncedPathIds.union(authManager.dirtyPathIds)
-            let pathsToBackup = pathStorage.recordedPaths.filter { pathsToUpload.contains($0.id) }
-            let totalPhotos = pathsToBackup.reduce(0) { $0 + $1.photos.count }
-            var uploadedPhotos = 0
-            print("[Backup] \(pathsToBackup.count) unsynced paths, \(totalPhotos) photos total")
-            for path in pathsToBackup {
-                print("[Backup] path '\(path.name)' — segments: \(path.segments.count), photos: \(path.photos.count)")
-                pathRows.append(PathRow(
-                    id: path.id,
-                    user_id: userId,
-                    name: path.name,
-                    created_at: path.startTime
-                ))
-
-                for segment in path.segments {
-                    segmentRows.append(SegmentRow(id: segment.id, path_id: path.id))
-                    for location in segment.locations {
-                        locationRows.append(LocationRow(
-                            id: location.id,
-                            segment_id: segment.id,
-                            latitude: location.latitude,
-                            longitude: location.longitude,
-                            timestamp: location.timestamp
-                        ))
-                    }
-                }
-
-                for photo in path.photos {
-                    let storagePath = "\(userId.uuidString.lowercased())/\(photo.id.uuidString.lowercased()).jpg"
-                    guard let image = photo.image,
-                          let jpegData = image.jpegData(compressionQuality: 0.9) else {
-                        print("[Backup]   ⚠️ skipping photo \(photo.id) — image missing from disk")
-                        continue
-                    }
-                    print("[Backup]   uploading \(storagePath) (\(jpegData.count) bytes)")
-                    try await supabase.storage
-                        .from("path-photos")
-                        .upload(storagePath, data: jpegData, options: FileOptions(contentType: "image/jpeg", upsert: true))
-                    uploadedPhotos += 1
-                    if totalPhotos > 0 {
-                        authManager.backupProgress = Double(uploadedPhotos) / Double(totalPhotos)
-                    }
-                    print("[Backup]   ✓ uploaded (\(uploadedPhotos)/\(totalPhotos))")
-                    photoRows.append(PhotoRow(
-                        id: photo.id,
-                        user_id: userId,
-                        location_id: photo.locationId,
-                        timestamp: photo.timestamp,
-                        storage_path: storagePath
-                    ))
-                }
-            }
-
-            print("[Backup] upserting \(pathRows.count) paths, \(segmentRows.count) segments, \(locationRows.count) locations, \(photoRows.count) photos")
-            if !pathRows.isEmpty {
-                try await supabase.from("paths").upsert(pathRows, onConflict: "id").execute()
-                print("[Backup] ✓ paths")
-            }
-            if !segmentRows.isEmpty {
-                try await supabase.from("path_segments").upsert(segmentRows, onConflict: "id").execute()
-                print("[Backup] ✓ segments")
-            }
-            if !locationRows.isEmpty {
-                try await supabase.from("gps_locations").upsert(locationRows, onConflict: "id").execute()
-                print("[Backup] ✓ locations")
-            }
-            if !photoRows.isEmpty {
-                try await supabase.from("path_photos").upsert(photoRows, onConflict: "id").execute()
-                print("[Backup] ✓ photos")
-            }
-
-            authManager.dirtyPathIds.subtract(pathsToUpload)
-            backupSuccessMessage = "Your data has been backed up to the cloud."
-            await authManager.refreshSyncStatus(localPaths: pathStorage.recordedPaths)
-        } catch {
-            print("[Backup] ❌ \(error)")
-            authErrorMessage = error.localizedDescription
-        }
     }
 
     private func signOut() async {
