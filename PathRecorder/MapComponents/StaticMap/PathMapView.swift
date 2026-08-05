@@ -241,7 +241,12 @@ struct PathMapView: View {
                     locationManager.loadPathForEditing(recordedPath, pathStorage: pathStorage)
                     showEditingSheet = false
                     dismiss()
-                    onModifyPath?()
+                    // Defer the push until the pop from dismiss() has settled — pairing
+                    // a NavigationPath pop with an isPresented push in the same transaction
+                    // races and can leave the pushed RecordingView rendering blank.
+                    DispatchQueue.main.async {
+                        onModifyPath?()
+                    }
                 },
                 onDeletePath: {
                     pathStorage.deletePath(id: recordedPath.id)
