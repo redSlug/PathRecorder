@@ -182,6 +182,11 @@ struct ContentView: View {
                 authManager.dirtyPathIds.insert(id)
                 locationManager.lastEditedPathId = nil
             }
+            .onChange(of: pathStorage.lastUpdatedPathId) { _, updatedId in
+                guard let id = updatedId, authManager.currentUser != nil else { return }
+                authManager.dirtyPathIds.insert(id)
+                pathStorage.lastUpdatedPathId = nil
+            }
             .onReceive(locationManager.$pathToNavigateTo) { path in
                 if let path = path {
                     selectedPathForRename = path

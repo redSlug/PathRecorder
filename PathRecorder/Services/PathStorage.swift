@@ -7,6 +7,7 @@ final class PathStorage: ObservableObject {
     }
 
     @Published var recordedPaths: [RecordedPath] = []
+    @Published var lastUpdatedPathId: UUID? = nil
     private let userDefaults = UserDefaults.standard
     private let key = "RecordedPaths"
 
@@ -30,18 +31,24 @@ final class PathStorage: ObservableObject {
 
     func updatePath(_ path: RecordedPath) {
         if let index = recordedPaths.firstIndex(where: { $0.id == path.id }) {
+            let existing = recordedPaths[index]
+            guard existing.name != path.name || existing.photos != path.photos else { return }
             recordedPaths[index] = path
             saveToUserDefaults()
+            lastUpdatedPathId = path.id
         }
     }
 
     func deletePhoto(from pathId: UUID, photo: PathPhoto) {
         if let index = recordedPaths.firstIndex(where: { $0.id == pathId }) {
+            let originalCount = recordedPaths[index].photos.count
             recordedPaths[index].photos.removeAll { $0.id == photo.id }
+            guard recordedPaths[index].photos.count != originalCount else { return }
             // Delete image file from disk
             let url = PathPhoto.imagesDirectory.appendingPathComponent(photo.imageFilename)
             try? FileManager.default.removeItem(at: url)
             saveToUserDefaults()
+            lastUpdatedPathId = pathId
         }
     }
 
