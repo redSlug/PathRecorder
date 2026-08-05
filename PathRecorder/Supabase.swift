@@ -114,6 +114,13 @@ final class AuthManager: ObservableObject {
     try? await supabase.from("paths").delete().eq("id", value: pathId).execute()
   }
 
+  /// Deletes a path locally and, if signed in, removes it from cloud storage/DB too.
+  func deletePath(_ path: RecordedPath, pathStorage: PathStorage) {
+    let photoIds = path.photos.map { $0.id }
+    pathStorage.deletePath(id: path.id)
+    Task { await deleteFromCloud(pathId: path.id, photoIds: photoIds) }
+  }
+
   // MARK: - Cloud Sync
 
   func syncOnLogin(pathStorage: PathStorage, backupService: BackupRestoreService) async {

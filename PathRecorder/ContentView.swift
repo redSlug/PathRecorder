@@ -91,9 +91,7 @@ struct ContentView: View {
                                 locationManager.loadPathForEditing(path, pathStorage: pathStorage)
                             },
                             onDelete: {
-                                let photoIds = path.photos.map { $0.id }
-                                pathStorage.deletePath(id: path.id)
-                                Task { await authManager.deleteFromCloud(pathId: path.id, photoIds: photoIds) }
+                                authManager.deletePath(path, pathStorage: pathStorage)
                             },
                             formatTime: formatTime,
                             onSelect: {

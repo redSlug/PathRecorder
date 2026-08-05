@@ -5,6 +5,7 @@ import Shared
 /// Displays a map with polylines and GPS point annotations for a recorded path.
 struct PathMapView: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var authManager: AuthManager
     @State private var sheetDetent: PresentationDetent = .fraction(0.25)
     @ObservedObject var locationManager: LocationManager
     @ObservedObject var pathStorage: PathStorage
@@ -249,7 +250,7 @@ struct PathMapView: View {
                     }
                 },
                 onDeletePath: {
-                    pathStorage.deletePath(id: recordedPath.id)
+                    authManager.deletePath(recordedPath, pathStorage: pathStorage)
                     showEditingSheet = false
                     dismiss()
                 }
