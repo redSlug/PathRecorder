@@ -9,7 +9,22 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var capturedPhotos: [PathPhoto] = []
     func addPhoto(_ photo: PathPhoto) {
         capturedPhotos.append(photo)
-        saveRecordingState() // Persist photos immediately after adding
+        saveRecordingState()
+    }
+
+    /// Snapshots the current GPS position into the recorded path and returns its id.
+    /// Call this at the moment a photo is captured so the photo has a precise location pin.
+    func recordPhotoLocation() -> UUID? {
+        guard let current = currentLocation else { return nil }
+        let gpsLocation = GPSLocation(
+            latitude: current.coordinate.latitude,
+            longitude: current.coordinate.longitude,
+            timestamp: current.timestamp,
+            segmentId: currentSegmentId
+        )
+        locations.append(gpsLocation)
+        saveRecordingState()
+        return gpsLocation.id
     }
     private let locationManager = CLLocationManager()
     @Published var locations: [GPSLocation] = []
@@ -22,7 +37,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var currentActivity: Activity<PathRecorderAttributes>?
     @Published var editingPathId: UUID? = nil
     @Published var editingPathName: String? = nil
-    @Published var pathNeedingRename: RecordedPath? = nil // Track path needing rename
+    @Published var pathToNavigateTo: RecordedPath? = nil // Track path to navigate to after recording
+    @Published var lastEditedPathId: UUID? = nil
     
     // Properties for improved distance calculation
     private var lastProcessedTime: Date?
@@ -137,8 +153,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         currentSegmentId = UUID() // Start a new segment
         isRecording = true
         isPaused = false
+        self.editingPathId = nil
+        self.editingPathName = nil
         locationManager.startUpdatingLocation()
-        self.markSegment() // Ensure segment starts with a coordinate
         startLiveActivity()
         // Start a timer to update elapsed time and Live Activity every second
         startActivityTimer()
@@ -155,8 +172,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             self.stopActivityTimer()
             self.endLiveActivity()
             self.saveCurrentPath(to: pathStorage)
-            self.editingPathId = nil
-            self.editingPathName = nil
             UserDefaults.standard.removeObject(forKey: self.recordingStateKey) // Clear saved state
         }
     }
@@ -184,10 +199,11 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             self.lastProcessedTime = nil
             self.lastProcessedLocation = nil
             self.recentLocations.removeAll()
-            // Start a new segment when resuming
+            // Start a new segment when resuming; assign the segment ID before location updates begin
             self.currentSegmentId = UUID()
             self.locationManager.startUpdatingLocation()
-            self.markSegment() // Ensure segment starts with a coordinate
+            // Do not duplicate the last paused location in the new segment.
+            // Subsequent location updates will belong to this new segment.
             // Recreate the timer when resuming
             self.startActivityTimer()
             // Update Live Activity to show resumed state
@@ -418,8 +434,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             return
         }
 
-        // Load the existing data
-        self.locations = path.locations
+        // Flatten segments back to locations for editing
+        self.locations = path.segments.flatMap { $0.locations }
         self.totalDistance = path.totalDistance
         self.elapsedTime = path.totalDuration
         self.startTime = path.startTime
@@ -429,7 +445,10 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         self.isRecording = true
         self.isPaused = true // Start in paused state as requested
         self.editingPathId = path.id
+        
+        // Restore all photos associated with the selected path
         self.capturedPhotos = path.photos
+        
         // Clear current location to prevent showing stale location annotation
         self.currentLocation = nil
         // Set up for continuing the path
@@ -438,11 +457,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         // Start Live Activity immediately with the correct initial values
         self.startLiveActivity()
         
-        // Don't start the timer yet since we're starting in paused state
-        // The timer will be created when resumeRecording() is called
-        
-        // Don't automatically resume - let the user manually resume when ready
-        // self.resumeRecording()
+        // Automatically resume when editing the path
+        self.resumeRecording()
         
         print("Loaded existing path for editing - Distance: \(totalDistance)m, Duration: \(elapsedTime)s")
     }
@@ -450,28 +466,32 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     func saveCurrentPath(to pathStorage: PathStorage) {
         guard let startTime = startTime else { return }
 
-        if (editingPathId != nil) {
-            // If editing, delete the old path immediately after loading for editing
-            pathStorage.deletePath(id: editingPathId!)
-        }
+        // Group locations by segmentId to create PathSegments
+        let groupedBySegment = Dictionary(grouping: locations) { $0.segmentId }
+        let segments = groupedBySegment
+            .sorted { segments1, segments2 in
+                (segments1.value.first?.timestamp ?? Date()) < (segments2.value.first?.timestamp ?? Date())
+            }
+            .map { _, groupedLocations in
+                let sortedLocations = groupedLocations.sorted { $0.timestamp < $1.timestamp }
+                return PathSegment(locations: sortedLocations)
+            }
 
-        // Create new path
-        let recordedPath = RecordedPath(
-            startTime: startTime,
-            totalDuration: elapsedTime,
-            totalDistance: totalDistance,
-            locations: locations,
-            photos: capturedPhotos,
-            name: editingPathName
-        )
+        let recordedPath: RecordedPath
+        if let editId = editingPathId {
+            // Preserve the original ID so the server record is updated in place via upsert
+            recordedPath = RecordedPath(id: editId, segments: segments,
+                                        name: editingPathName ?? "Unnamed", photos: capturedPhotos)
+            lastEditedPathId = editId
+        } else {
+            recordedPath = RecordedPath(segments: segments, name: editingPathName, photos: capturedPhotos)
+        }
         pathStorage.savePath(recordedPath)
         capturedPhotos.removeAll()
 
-        // If name is nil, trigger UI to show rename sheet for this path
-        if editingPathName == nil {
-            DispatchQueue.main.async {
-                self.pathNeedingRename = recordedPath
-            }
+        // Always navigate to the path, but only show rename sheet if name is nil
+        DispatchQueue.main.async {
+            self.pathToNavigateTo = recordedPath
         }
     }
     

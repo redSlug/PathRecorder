@@ -1,12 +1,15 @@
 import SwiftUI
 import MapKit
+import Shared
 
 /// Displays a map with polylines and GPS point annotations for a recorded path.
 struct PathMapView: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var authManager: AuthManager
     @State private var sheetDetent: PresentationDetent = .fraction(0.25)
     @ObservedObject var locationManager: LocationManager
     @ObservedObject var pathStorage: PathStorage
+    @ObservedObject var settings: Settings
     @State private var region: MKCoordinateRegion
     @State private var pathSegments: [PathSegment] = []
     @State private var showEditingSheet = false
@@ -14,22 +17,17 @@ struct PathMapView: View {
     @State private var recordedPath: RecordedPath
     var showRenameSheetOnAppear: Bool
     var onModifyPath: (() -> Void)?
+    @State private var bottomSheetDetent: PresentationDetent = .height(100)
 
-    init(recordedPath: RecordedPath, locationManager: LocationManager, pathStorage: PathStorage, showRenameSheetOnAppear: Bool = false, onModifyPath: (() -> Void)? = nil) {
+    init(recordedPath: RecordedPath, locationManager: LocationManager, pathStorage: PathStorage, settings: Settings, showRenameSheetOnAppear: Bool = false, onModifyPath: (() -> Void)? = nil) {
         self.locationManager = locationManager
         self.pathStorage = pathStorage
+        self.settings = settings
         _recordedPath = State(initialValue: recordedPath)
-        // Group locations by segment first
-        let segments = Dictionary(grouping: recordedPath.locations, by: { $0.segmentId })
-        var tempSegments: [PathSegment] = []
-        for (segmentId, locations) in segments {
-            let sortedLocations = locations.sorted { $0.timestamp < $1.timestamp }
-            let coordinates = sortedLocations.map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) }
-            tempSegments.append(PathSegment(id: segmentId, coordinates: coordinates))
-        }
-        _pathSegments = State(initialValue: tempSegments)
+        // Use segments directly from the new data model
+        _pathSegments = State(initialValue: recordedPath.segments)
         // Calculate the proper region to fit all coordinates
-        let allCoordinates = tempSegments.flatMap { $0.coordinates }
+        let allCoordinates = recordedPath.segments.flatMap { $0.coordinates }
         let minLat = allCoordinates.map { $0.latitude }.min() ?? 0
         let maxLat = allCoordinates.map { $0.latitude }.max() ?? 0
         let minLon = allCoordinates.map { $0.longitude }.min() ?? 0
@@ -54,42 +52,127 @@ struct PathMapView: View {
     // Holds all photos at a tapped coordinate
     @State private var selectedPhotos: [PathPhoto]? = nil
     @State private var selectedPhotoIndex: Int = 0
+    @State private var showPhotoGrid: Bool = false
     @State private var pickedPathPhotos: [PathPhoto] = []
     @State private var showAssociationAlert = false
     @State private var associatedCount = 0
     @State private var pendingPhotos: [PathPhoto] = []
 
-    var body: some View {
-        let currentPath = pathStorage.path(for: recordedPath.id) ?? recordedPath
+    // MARK: - View Components
+    private func mapView(for currentPath: RecordedPath) -> some View {
         MapWithPolylines(
             region: region,
             locations: currentPath.locations,
-            pathSegments: pathSegments,
+            pathSegments: currentPath.segments,
             photos: currentPath.photos,
-            onPhotoTapped: { tappedPhoto in
-                // Always get the most current path data when a photo is tapped
-                let latestPath = pathStorage.path(for: recordedPath.id) ?? recordedPath
-                
-                // Find all photos within 10 meters of the tapped coordinate
-                let tappedLocation = CLLocation(latitude: tappedPhoto.coordinate.latitude, longitude: tappedPhoto.coordinate.longitude)
-                let nearbyPhotos = latestPath.photos.filter {
-                    let photoLocation = CLLocation(latitude: $0.coordinate.latitude, longitude: $0.coordinate.longitude)
-                    return tappedLocation.distance(from: photoLocation) <= 10.0 // meters
-                }
-                selectedPhotos = nearbyPhotos
-                // Show the tapped photo first if multiple (only if it still exists)
-                if let idx = nearbyPhotos.firstIndex(where: { $0.id == tappedPhoto.id }) {
-                    selectedPhotoIndex = idx
-                } else {
-                    selectedPhotoIndex = 0
-                }
+            onPhotoTapped: { tappedPhotos, selectedPhoto in
+                handlePhotoTap(tappedPhotos, selectedPhoto: selectedPhoto)
             }
         )
-        .id(currentPath.photos.count) // Force refresh when photo count changes
-        .navigationTitle(currentPath.name)
+        .id(currentPath.photos.count)
+    }
+    
+    private func bottomInfoSheet(for currentPath: RecordedPath) -> some View {
+        VStack(spacing: 0) {
+            Spacer()
+            pathInfoContent(for: currentPath)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(.ultraThinMaterial)
+                        .shadow(radius: 8)
+                )
+                .padding(.horizontal, 12)
+                .padding(.bottom, 20)
+        }
+    }
+    
+    private func pathInfoContent(for currentPath: RecordedPath) -> some View {
+        VStack(alignment: .center, spacing: 8) {
+            // Title line
+            Text(currentPath.name)
+                .font(.headline)
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+            
+            // Metrics line
+            pathMetricsRow(for: currentPath)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
+        }
+        .frame(maxWidth: nil, alignment: .center)
+    }
+    
+    private func pathMetricsRow(for currentPath: RecordedPath) -> some View {
+        HStack(spacing: 12) {
+            // Distance
+            metricItem(
+                icon: "figure.walk",
+                color: .green,
+                text: settings.formatDistance(currentPath.totalDistance)
+            )
+            
+            
+            // Total time
+            metricItem(
+                icon: "clock",
+                color: .orange,
+                text: formatTime(currentPath.totalDuration)
+            )
+            
+            
+            // Pace
+            metricItem(
+                icon: "timer",
+                color: .purple,
+                text: computePace(
+                    distanceMeters: currentPath.totalDistance,
+                    elapsedSeconds: currentPath.totalDuration,
+                    unit: settings.distanceUnit.rawValue
+                )
+            )
+        }
+    }
+    
+    private func metricItem(icon: String, color: Color, text: String) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .foregroundColor(color)
+                .font(.caption)
+            Text(text)
+                .font(.subheadline)
+        }
+    }
+    
+    // MARK: - Helper Methods
+    private func handlePhotoTap(_ tappedPhotos: [PathPhoto], selectedPhoto: PathPhoto) {
+        let sortedPhotos = tappedPhotos.sorted { $0.timestamp < $1.timestamp }
+        selectedPhotos = sortedPhotos
+        if let idx = sortedPhotos.firstIndex(where: { $0.id == selectedPhoto.id }) {
+            selectedPhotoIndex = idx
+        } else {
+            selectedPhotoIndex = 0
+        }
+    }
+
+    var body: some View {
+        let currentPath = pathStorage.path(for: recordedPath.id) ?? recordedPath
+        ZStack(alignment: .bottom) {
+            mapView(for: currentPath)
+            bottomInfoSheet(for: currentPath)
+        }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+                if !currentPath.photos.isEmpty {
+                    NavigationLink(destination: PhotoGridView(photos: currentPath.photos, pathStorage: pathStorage, pathId: recordedPath.id), isActive: $showPhotoGrid) {
+                        EmptyView()
+                    }
+                    Button(action: {
+                        showPhotoGrid = true
+                    }) {
+                        Image(systemName: "photo.on.rectangle")
+                    }
+                }
                 Button(action: {
                     showEditingSheet = true
                 }) {
@@ -97,6 +180,31 @@ struct PathMapView: View {
                 }
             }
         }
+        // Hidden NavigationLink for photo pager
+        .background(
+            NavigationLink(
+                destination: Group {
+                    if let photos = selectedPhotos {
+                        PhotoPagerView(
+                            photos: photos,
+                            selectedIndex: $selectedPhotoIndex,
+                            pathStorage: pathStorage,
+                            pathId: recordedPath.id
+                        )
+                    } else {
+                        Text("No photos at this location.")
+                            .padding()
+                    }
+                },
+                isActive: Binding(
+                    get: { selectedPhotos != nil },
+                    set: { if !$0 { selectedPhotos = nil } }
+                )
+            ) {
+                EmptyView()
+            }
+        )
+        // Removed sheet for all photos; now uses navigation to PhotoGridView
         .onAppear {
             if showRenameSheetOnAppear {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
@@ -134,10 +242,15 @@ struct PathMapView: View {
                     locationManager.loadPathForEditing(recordedPath, pathStorage: pathStorage)
                     showEditingSheet = false
                     dismiss()
-                    onModifyPath?()
+                    // Defer the push until the pop from dismiss() has settled — pairing
+                    // a NavigationPath pop with an isPresented push in the same transaction
+                    // races and can leave the pushed RecordingView rendering blank.
+                    DispatchQueue.main.async {
+                        onModifyPath?()
+                    }
                 },
                 onDeletePath: {
-                    pathStorage.deletePath(id: recordedPath.id)
+                    authManager.deletePath(recordedPath, pathStorage: pathStorage)
                     showEditingSheet = false
                     dismiss()
                 }
@@ -149,46 +262,6 @@ struct PathMapView: View {
                     editedName = latest.name
                     recordedPath = latest
                 }
-            }
-        }
-        .sheet(isPresented: Binding(
-            get: { selectedPhotos != nil },
-            set: { if !$0 { selectedPhotos = nil } }
-        )) {
-            if let photos = selectedPhotos {
-                PhotoPagerView(
-                    photos: photos, 
-                    selectedIndex: $selectedPhotoIndex,
-                    onDeletePhoto: { photoToDelete in
-                        // Get the current path from storage
-                        if var currentPath = pathStorage.path(for: recordedPath.id) {
-                            // Remove photo from the path
-                            currentPath.deletePhoto(photoToDelete)
-                            
-                            // Update the stored path
-                            pathStorage.updatePath(currentPath)
-                            
-                            // Update the local recordedPath state as well
-                            recordedPath = currentPath
-                            
-                            // Update the selected photos list with the latest data
-                            selectedPhotos?.removeAll { $0.id == photoToDelete.id }
-                            
-                            // If no photos left, close the sheet
-                            if selectedPhotos?.isEmpty == true {
-                                selectedPhotos = nil
-                            } else if let remainingPhotos = selectedPhotos {
-                                // Adjust selected index if needed
-                                if selectedPhotoIndex >= remainingPhotos.count {
-                                    selectedPhotoIndex = max(0, remainingPhotos.count - 1)
-                                }
-                            }
-                        }
-                    }
-                )
-            } else {
-                Text("No photos at this location.")
-                    .padding()
             }
         }
         .sheet(isPresented: Binding(get: { !showEditingSheet && showAssociationAlert && associatedCount > 0 }, set: { show in showAssociationAlert = show })) {
@@ -217,5 +290,13 @@ struct PathMapView: View {
                 pendingPhotos.removeAll()
             }
         }
+    }
+    
+    // Helper function for formatting time
+    private func formatTime(_ timeInterval: TimeInterval) -> String {
+        let hours = Int(timeInterval) / 3600
+        let minutes = Int(timeInterval) / 60 % 60
+        let seconds = Int(timeInterval) % 60
+        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
     }
 }

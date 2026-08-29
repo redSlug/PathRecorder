@@ -13,9 +13,16 @@ import UIKit
 @main
 struct PathRecorderApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate: AppDelegate
+    @StateObject private var authManager = AuthManager()
+    @StateObject private var backupService = BackupRestoreService()
+
+    init() {
+        // Run data migrations on app startup
+        DataMigration.shared.runMigrations()
+    }
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            Item.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
@@ -29,6 +36,8 @@ struct PathRecorderApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(authManager)
+                .environmentObject(backupService)
         }
         .modelContainer(sharedModelContainer)
     }

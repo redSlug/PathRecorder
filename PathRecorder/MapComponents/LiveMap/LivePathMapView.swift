@@ -8,7 +8,6 @@ struct LivePathMapView: View {
     @ObservedObject var pathStorage: PathStorage
     @State private var region: MKCoordinateRegion?
     @State private var isAutoCentering: Bool = true
-    @State private var lastCenterLocation: CLLocationCoordinate2D?
     @State private var showCamera = false
     @State private var capturedImage: UIImage?
     @State private var hasCurrentGPS: Bool = false // Track if we have current GPS
@@ -78,7 +77,7 @@ struct LivePathMapView: View {
                     Spacer()
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle())
-                        .scaleEffect(1.5)
+                        .scaleEffect(1.6)
                     Text("Waiting for GPS...")
                         .font(.headline)
                         .padding(.top, 8)
@@ -146,13 +145,13 @@ struct LivePathMapView: View {
             CameraView(isPresented: $showCamera, onImageCaptured: { image in
                 capturedImage = image
                 // Save photo to current path
-                if let image = image, let location = locationManager.currentLocation {
+                if let locationId = locationManager.recordPhotoLocation() {
                     let filename = "photo_\(UUID().uuidString).jpg"
                     let photo = PathPhoto(
-                        coordinate: location.coordinate,
                         timestamp: Date(),
                         image: image,
-                        imageFilename: filename
+                        imageFilename: filename,
+                        locationId: locationId
                     )
                     locationManager.addPhoto(photo)
                 }

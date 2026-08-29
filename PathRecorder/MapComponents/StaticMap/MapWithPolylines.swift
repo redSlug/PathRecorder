@@ -11,12 +11,17 @@ class PhotoAnnotation: NSObject, MKAnnotation {
     }
 }
 
+private struct ClusterKey: Hashable {
+    let x: Int
+    let y: Int
+}
+
 struct MapWithPolylines: UIViewRepresentable {
     var region: MKCoordinateRegion
     let locations: [GPSLocation]
     let pathSegments: [PathSegment]
     let photos: [PathPhoto]
-    let onPhotoTapped: (PathPhoto) -> Void
+    let onPhotoTapped: ([PathPhoto], PathPhoto) -> Void
 
     func makeUIView(context: Context) -> MKMapView {
         let mapView = MKMapView()
@@ -28,49 +33,76 @@ struct MapWithPolylines: UIViewRepresentable {
     func updateUIView(_ mapView: MKMapView, context: Context) {
         mapView.removeOverlays(mapView.overlays)
         mapView.removeAnnotations(mapView.annotations)
-        for segment in pathSegments {
+        for (index, segment) in pathSegments.enumerated() {
             if segment.coordinates.count >= 2 {
-                mapView.addOverlay(segment.polyline)
+                let polyline = segment.mkPolyline
+                polyline.title = "segment_\(index)"
+                mapView.addOverlay(polyline)
             }
-            // Only add GPS point annotation if no photo annotation is nearby (within 10 meters)
-            let startCoord = segment.coordinates.first!
-            let endCoord = segment.coordinates.last!
-            let startLocation = CLLocation(latitude: startCoord.latitude, longitude: startCoord.longitude)
-            let endLocation = CLLocation(latitude: endCoord.latitude, longitude: endCoord.longitude)
-            let photoLocations = photos.map { CLLocation(latitude: $0.coordinate.latitude, longitude: $0.coordinate.longitude) }
-            let startHasNearbyPhoto = photoLocations.contains { $0.distance(from: startLocation) <= 10.0 }
-            let endHasNearbyPhoto = photoLocations.contains { $0.distance(from: endLocation) <= 10.0 }
-            if !startHasNearbyPhoto {
+            // Add GPS point annotations for segment start/end
+            if let startCoord = segment.coordinates.first,
+               let endCoord = segment.coordinates.last {
                 let startAnnotation = MKPointAnnotation()
                 startAnnotation.coordinate = startCoord
                 mapView.addAnnotation(startAnnotation)
-            }
-            if !endHasNearbyPhoto {
+
                 let endAnnotation = MKPointAnnotation()
                 endAnnotation.coordinate = endCoord
                 mapView.addAnnotation(endAnnotation)
             }
         }
-        // Group photos within 10 meters
-        var clusters: [[PathPhoto]] = []
+
+        updatePhotoAnnotations(on: mapView)
+    }
+
+    private func updatePhotoAnnotations(on mapView: MKMapView) {
+        let threshold: CGFloat = 52.0
+        var photoGroups: [[PathPhoto]] = []
+        var groupCoordinates: [[CLLocationCoordinate2D]] = []
+        var groupScreenPoints: [CGPoint] = []
+
         for photo in photos {
-            let location = CLLocation(latitude: photo.coordinate.latitude, longitude: photo.coordinate.longitude)
-            if let idx = clusters.firstIndex(where: { cluster in
-                guard let first = cluster.first else { return false }
-                let firstLoc = CLLocation(latitude: first.coordinate.latitude, longitude: first.coordinate.longitude)
-                return location.distance(from: firstLoc) <= 10.0
+            guard let coordinate = coordinate(for: photo, in: locations) else { continue }
+            let screenPoint = mapView.convert(coordinate, toPointTo: mapView)
+            if let matchingIndex = groupScreenPoints.firstIndex(where: { existingPoint in
+                abs(existingPoint.x - screenPoint.x) < threshold &&
+                abs(existingPoint.y - screenPoint.y) < threshold
             }) {
-                clusters[idx].append(photo)
+                photoGroups[matchingIndex].append(photo)
+                groupCoordinates[matchingIndex].append(coordinate)
             } else {
-                clusters.append([photo])
+                photoGroups.append([photo])
+                groupCoordinates.append([coordinate])
+                groupScreenPoints.append(screenPoint)
             }
         }
-        // Add one annotation per cluster
-        for cluster in clusters {
-            guard let first = cluster.first else { continue }
-            let coord = first.coordinate
-            mapView.addAnnotation(PhotoAnnotation(photos: cluster, coordinate: coord))
+
+        let existingPhotoAnnotations = mapView.annotations.compactMap { $0 as? PhotoAnnotation }
+        mapView.removeAnnotations(existingPhotoAnnotations)
+
+        for (index, groupedPhotos) in photoGroups.enumerated() {
+            let coordinates = groupCoordinates[index]
+            guard !coordinates.isEmpty else { continue }
+            let sortedPhotos = groupedPhotos.sorted { $0.timestamp < $1.timestamp }
+            let centerCoordinate = averageCoordinate(from: coordinates)
+            let annotation = PhotoAnnotation(photos: sortedPhotos, coordinate: centerCoordinate)
+            mapView.addAnnotation(annotation)
         }
+    }
+
+    private func averageCoordinate(from coordinates: [CLLocationCoordinate2D]) -> CLLocationCoordinate2D {
+        let total = coordinates.reduce((lat: 0.0, lon: 0.0)) { acc, coord in
+            (acc.lat + coord.latitude, acc.lon + coord.longitude)
+        }
+        return CLLocationCoordinate2D(
+            latitude: total.lat / Double(coordinates.count),
+            longitude: total.lon / Double(coordinates.count)
+        )
+    }
+
+    private func coordinate(for photo: PathPhoto, in locations: [GPSLocation]) -> CLLocationCoordinate2D? {
+        guard let location = locations.first(where: { $0.id == photo.locationId }) else { return nil }
+        return CLLocationCoordinate2D(latitude: location.latitude, longitude: location.longitude)
     }
 
     func makeCoordinator() -> Coordinator {
@@ -79,8 +111,8 @@ struct MapWithPolylines: UIViewRepresentable {
 
     class Coordinator: NSObject, MKMapViewDelegate {
         var parent: MapWithPolylines
-        let onPhotoTapped: (PathPhoto) -> Void
-        init(_ parent: MapWithPolylines, onPhotoTapped: @escaping (PathPhoto) -> Void) {
+        let onPhotoTapped: ([PathPhoto], PathPhoto) -> Void
+        init(_ parent: MapWithPolylines, onPhotoTapped: @escaping ([PathPhoto], PathPhoto) -> Void) {
             self.parent = parent
             self.onPhotoTapped = onPhotoTapped
         }
@@ -113,7 +145,7 @@ struct MapWithPolylines: UIViewRepresentable {
                 } else {
                     annotationView?.annotation = annotation
                 }
-                annotationView?.image = MapRenderingHelpers.cachedBlueDotImage
+                annotationView?.image = MapRenderingHelpers.cachedBlueDotImage()
                 annotationView?.centerOffset = CGPoint(x: 0, y: 0)
                 annotationView?.isUserInteractionEnabled = false // Don't block touches
                 annotationView?.layer.zPosition = 0
@@ -123,11 +155,14 @@ struct MapWithPolylines: UIViewRepresentable {
         func mapView(_ mapView: MKMapView, didSelect annotationView: MKAnnotationView) {
             if let photoAnnotation = annotationView.annotation as? PhotoAnnotation {
                 print("Photo annotation tapped at coordinate: \(photoAnnotation.coordinate.latitude), \(photoAnnotation.coordinate.longitude)")
-                // Pass all photos in the cluster to the sheet
-                if let firstPhoto = photoAnnotation.photos.first {
-                    onPhotoTapped(firstPhoto)
-                }
+                let sortedPhotos = photoAnnotation.photos.sorted { $0.timestamp < $1.timestamp }
+                guard let firstPhoto = sortedPhotos.first else { return }
+                onPhotoTapped(sortedPhotos, firstPhoto)
             }
+        }
+
+        func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
+            parent.updatePhotoAnnotations(on: mapView)
         }
     }
 }

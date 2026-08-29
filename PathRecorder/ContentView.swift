@@ -8,29 +8,82 @@
 import SwiftUI
 import SwiftData
 import CoreLocation
+import Shared // Import the module if needed
+import StoreKit
 
 struct ContentView: View {
+    private let rateAlertKey = "PathRecorder.HasShownRateAlert"
+    // Computed property for sort order label
+    var sortOrderLabel: String {
+        switch selectedSortField {
+        case .date:
+            return sortAscending ? "Least recent" : "Most recent"
+        case .time:
+            return sortAscending ? "Shortest first" : "Longest first"
+        case .distance:
+            return sortAscending ? "Shortest first" : "Longest first"
+        case .pace:
+            return sortAscending ? "Fastest first" : "Slowest first"
+        }
+    }
+    @EnvironmentObject private var authManager: AuthManager
+    @EnvironmentObject private var backupService: BackupRestoreService
     @StateObject private var locationManager = LocationManager()
     @StateObject private var pathStorage = PathStorage()
     @StateObject private var settings = Settings()
     @State private var showRecordingSheet = false
+    @State private var recordingPulse = false
     @State private var selectedPathForRename: RecordedPath? = nil
     @State private var navigationPath = NavigationPath()
     @State private var showRenameSheet = false
     @State private var showLocationAlert = false
     @State private var showSettingsSheet = false
 
+    enum SortField: String, CaseIterable, Identifiable {
+        case date = "Date"
+        case pace = "Pace"
+        case time = "Time"
+        case distance = "Distance"
+        var id: String { rawValue }
+    }
+    @State private var selectedSortField: SortField = .date
+    @State private var sortAscending: Bool = false
+
     var body: some View {
         NavigationStack(path: $navigationPath) {
-            VStack(spacing: 20) {
+            VStack(spacing: 10) {
                 Text("No history yet — start recording to track your journeys.")
                     .font(.headline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity, maxHeight: pathStorage.recordedPaths.isEmpty ? .infinity : 0, alignment: .center)
                     .opacity(pathStorage.recordedPaths.isEmpty ? 1 : 0)
+
+                if pathStorage.recordedPaths.count > 1 {
+                    HStack {
+                        Menu {
+                            Picker("Sort by", selection: $selectedSortField) {
+                                ForEach(SortField.allCases) { field in
+                                    Text(field.rawValue).tag(field)
+                                }
+                            }
+                        } label: {
+                            Text("Sort by \(selectedSortField.rawValue)")
+                        }
+                        .font(.subheadline)
+                        Spacer()
+                        Button(action: {
+                            sortAscending.toggle()
+                        }) {
+                            Text(sortOrderLabel)
+                        }
+                        .font(.subheadline)
+                    }
+                    .padding(.horizontal)
+                }
+
                 List {
-                    ForEach(pathStorage.recordedPaths.sorted(by: { $0.startTime > $1.startTime })) { path in
+                    ForEach(sortedPaths) { path in
                         RecordedPathRow(
                             path: path,
                             onEdit: {
@@ -38,7 +91,7 @@ struct ContentView: View {
                                 locationManager.loadPathForEditing(path, pathStorage: pathStorage)
                             },
                             onDelete: {
-                                pathStorage.deletePath(id: path.id)
+                                authManager.deletePath(path, pathStorage: pathStorage)
                             },
                             formatTime: formatTime,
                             onSelect: {
@@ -50,59 +103,96 @@ struct ContentView: View {
                     }
                 }
                 .listStyle(.plain)
-                
-                Button(action: {
-                    if locationManager.authorizationStatus == .authorizedAlways || locationManager.authorizationStatus == .authorizedWhenInUse {
-                        locationManager.startRecording()
+
+                if locationManager.isRecording {
+                    Button {
                         showRecordingSheet = true
-                    } else {
-                        showLocationAlert = true
-                    }
-                }) {
-                    Text("Start Recording")
-                        .font(.headline)
-                        .foregroundColor(.white)
+                    } label: {
+                        HStack(spacing: 8) {
+                            Text(locationManager.isPaused ? "Paused — Tap to Return" : "Recording — Tap to Return")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                        }
                         .padding()
                         .frame(maxWidth: .infinity)
-                        .background(Color.green)
+                        .background(locationManager.isPaused ? Color.orange : Color.red)
                         .cornerRadius(10)
-                }
-                .padding(.horizontal)
-                .alert("Location Access Needed", isPresented: $showLocationAlert) {
-                    Button("Open Settings") {
-                        if let url = URL(string: UIApplication.openSettingsURLString) {
-                            UIApplication.shared.open(url)
-                        }
                     }
-                    Button("Cancel", role: .cancel) { }
-                } message: {
-                    Text("To record your path, please allow location access in Settings.")
+                    .padding(.horizontal)
+                    .onAppear { recordingPulse = true }
+                } else {
+                    Button(action: {
+                        if locationManager.authorizationStatus == .authorizedAlways || locationManager.authorizationStatus == .authorizedWhenInUse {
+                            locationManager.startRecording()
+                            showRecordingSheet = true
+                        } else {
+                            showLocationAlert = true
+                        }
+                    }) {
+                        Text("Start Recording")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(Color.green)
+                            .cornerRadius(10)
+                    }
+                    .padding(.horizontal)
+                    .alert("Location Access Needed", isPresented: $showLocationAlert) {
+                        Button("Open Settings") {
+                            if let url = URL(string: UIApplication.openSettingsURLString) {
+                                UIApplication.shared.open(url)
+                            }
+                        }
+                        Button("Cancel", role: .cancel) { }
+                    } message: {
+                        Text("To record your path, please allow location access in Settings.")
+                    }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding()
             .onAppear {
                 locationManager.requestPermission()
-                // Automatically show recording view if in-progress recording exists
-                if locationManager.isRecording && locationManager.isPaused {
-                    showRecordingSheet = true
+                // Show StoreKit review prompt if more than 3 recordings and not shown before
+                let hasShownRateAlert = UserDefaults.standard.bool(forKey: rateAlertKey)
+                if pathStorage.recordedPaths.count >= 3 && !hasShownRateAlert {
+                    if let windowScene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene {
+                        AppStore.requestReview(in: windowScene)
+                    }
+                    UserDefaults.standard.set(true, forKey: rateAlertKey)
                 }
             }
-            .onReceive(locationManager.$pathNeedingRename) { path in
+            .onChange(of: authManager.currentUser?.id) { _, userId in
+                if userId != nil {
+                    Task { await authManager.syncOnLogin(pathStorage: pathStorage, backupService: backupService) }
+                } else {
+                    authManager.unsyncedPathIds = []
+                    authManager.dirtyPathIds = []
+                }
+            }
+            .onChange(of: pathStorage.recordedPaths.count) { _, _ in
+                guard authManager.currentUser != nil else { return }
+                Task { await authManager.refreshSyncStatus(localPaths: pathStorage.recordedPaths) }
+            }
+            .onChange(of: locationManager.lastEditedPathId) { _, editedId in
+                guard let id = editedId, authManager.currentUser != nil else { return }
+                authManager.dirtyPathIds.insert(id)
+                locationManager.lastEditedPathId = nil
+            }
+            .onChange(of: pathStorage.lastUpdatedPathId) { _, updatedId in
+                guard let id = updatedId, authManager.currentUser != nil else { return }
+                authManager.dirtyPathIds.insert(id)
+                pathStorage.lastUpdatedPathId = nil
+            }
+            .onReceive(locationManager.$pathToNavigateTo) { path in
                 if let path = path {
                     selectedPathForRename = path
                     navigationPath.append(path)
-                    showRenameSheet = true
+                    showRenameSheet = locationManager.editingPathName == nil
                 }
             }
-            .fullScreenCover(isPresented: Binding(
-                get: { showRecordingSheet },
-                set: { newValue in
-                    if !newValue {
-                        showRecordingSheet = false
-                    }
-                })
-            ) {
+            .navigationDestination(isPresented: $showRecordingSheet) {
                 RecordingView(
                     locationManager: locationManager,
                     pathStorage: pathStorage,
@@ -123,22 +213,51 @@ struct ContentView: View {
                 }
             }
             .sheet(isPresented: $showSettingsSheet) {
-                SettingsView(settings: settings)
+                SettingsView(settings: settings, pathStorage: pathStorage)
+                    .environmentObject(backupService)
             }
             .navigationDestination(for: RecordedPath.self) { path in
-                let view = PathMapView(
+                PathMapView(
                     recordedPath: path, 
                     locationManager: locationManager, 
                     pathStorage: pathStorage, 
+                    settings: settings,
                     showRenameSheetOnAppear: showRenameSheet,
                     onModifyPath: {
                         showRecordingSheet = true
                     }
                 )
-                showRenameSheet = false
-                return view
+                .onAppear {
+                    showRenameSheet = false
+                }
             }
         }
+    }
+
+    // Computed property for sorted paths
+    var sortedPaths: [RecordedPath] {
+        let paths = pathStorage.recordedPaths
+        switch selectedSortField {
+        case .date:
+            return paths.sorted { sortAscending ? $0.startTime < $1.startTime : $0.startTime > $1.startTime }
+        case .pace:
+            // Lower pace = faster, so ascending = fastest first
+            return paths.sorted {
+                let pace0 = computePaceValue(distanceMeters: $0.totalDistance, elapsedSeconds: $0.totalDuration)
+                let pace1 = computePaceValue(distanceMeters: $1.totalDistance, elapsedSeconds: $1.totalDuration)
+                return sortAscending ? pace0 < pace1 : pace0 > pace1
+            }
+        case .time:
+            return paths.sorted { sortAscending ? $0.totalDuration < $1.totalDuration : $0.totalDuration > $1.totalDuration }
+        case .distance:
+            return paths.sorted { sortAscending ? $0.totalDistance < $1.totalDistance : $0.totalDistance > $1.totalDistance }
+        }
+    }
+
+    // Helper to get pace as seconds per meter (or per km/mi, but for sorting, use SI)
+    func computePaceValue(distanceMeters: Double, elapsedSeconds: Double) -> Double {
+        guard distanceMeters > 0 else { return Double.greatestFiniteMagnitude }
+        return elapsedSeconds / distanceMeters
     }
 
     private func formatTime(_ timeInterval: TimeInterval) -> String {
@@ -180,10 +299,16 @@ struct RecordedPathRow: View {
                         Text(settings.formatDistance(path.totalDistance))
                     }
                     HStack(spacing: 6) {
-                        Image(systemName: "timer")
+                        Image(systemName: "alarm")
                             .foregroundColor(.orange)
                             .font(.subheadline)
                         Text(formatTime(path.totalDuration))
+                    }
+                    HStack(spacing: 6) {
+                        Image(systemName: "timer")
+                            .foregroundColor(.blue)
+                            .font(.subheadline)
+                        Text(computePace(distanceMeters: path.totalDistance, elapsedSeconds: path.totalDuration, unit: settings.distanceUnit.rawValue))
                     }
                 }
                 .font(.subheadline)
@@ -218,39 +343,4 @@ struct RecordedPathRow: View {
             Text("To record your path, please allow location access in Settings.")
         }
     }
-}
-
-struct SettingsView: View {
-    @ObservedObject var settings: Settings
-    @Environment(\.dismiss) private var dismiss
-    
-    var body: some View {
-        NavigationView {
-            Form {
-                Section(header: Text("Distance Units")) {
-                    Picker("Distance Unit", selection: $settings.distanceUnit) {
-                        ForEach(DistanceUnit.allCases, id: \.self) { unit in
-                            Text(unit.displayName).tag(unit)
-                        }
-                    }
-                    .pickerStyle(SegmentedPickerStyle())
-                }
-            }
-            .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
-            }
-        }
-    }
-}
-
-#Preview {
-    ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
-        .environmentObject(LocationManager())
 }

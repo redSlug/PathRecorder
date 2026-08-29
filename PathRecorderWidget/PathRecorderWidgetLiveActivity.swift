@@ -25,7 +25,7 @@ struct PathRecorderWidgetLiveActivity: Widget {
                         .font(.headline)
                         .foregroundColor(.primary)
                     
-                    HStack {
+                    /*HStack {
                         Label {
                             Text(String(format: "%.6f, %.6f", 
                                       context.state.latitude, 
@@ -35,7 +35,7 @@ struct PathRecorderWidgetLiveActivity: Widget {
                             Image(systemName: "location.fill")
                                 .foregroundColor(.blue)
                         }
-                    }
+                    }*/
                     
                     HStack(spacing: 15) {
                         Label {
@@ -50,7 +50,7 @@ struct PathRecorderWidgetLiveActivity: Widget {
                             Text(formatTime(context.state.elapsedTime))
                                 .bold()
                         } icon: {
-                            Image(systemName: "timer")
+                            Image(systemName: "alarm")
                                 .foregroundColor(.orange)
                         }
                     }
@@ -61,7 +61,14 @@ struct PathRecorderWidgetLiveActivity: Widget {
                             .foregroundColor(.orange)
                             .fontWeight(.bold)
                             .padding(.top, 2)
-                    }
+                    }/* else {
+                        HStack {
+                            Image(systemName: "timer")
+                                .foregroundColor(.blue)
+                                .font(.subheadline)
+                            Text(context.state.pace)
+                        }
+                    }*/
                 }
                 .padding()
                 .multilineTextAlignment(.center)
@@ -80,7 +87,7 @@ struct PathRecorderWidgetLiveActivity: Widget {
                 
                 DynamicIslandExpandedRegion(.trailing) {
                     Label(formatTime(context.state.elapsedTime), 
-                          systemImage: "timer")
+                          systemImage: "alarm")
                         .foregroundColor(.orange)
                 }
                 
@@ -150,7 +157,8 @@ struct PathRecorderLiveActivity_Previews: PreviewProvider {
         longitude: -122.03031, 
         distance: 1234, 
         elapsedTime: 3600,
-        isPaused: false
+        isPaused: false,
+        distanceUnit: "km"
     )
 
     static var previews: some View {
